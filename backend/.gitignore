@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.env
+.env.test
+.env.*
+!.env.example
+
+coverage/
+
+.prisma/
+/src/generated/prisma
+
+/src/generated/prisma
+
+/src/generated/prisma

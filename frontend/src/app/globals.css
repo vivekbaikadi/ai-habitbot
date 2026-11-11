@@ -1,0 +1,535 @@
+@import "tailwindcss";
+
+/* =========================================================
+   HABITBOT DESIGN SYSTEM
+   Warm wellness / premium productivity
+   ========================================================= */
+
+:root {
+  /* -------------------------------------------------------
+     Core
+     ------------------------------------------------------- */
+
+  --background: #f7f5f0;
+  --foreground: #20201e;
+
+  --card: #fffdfa;
+  --card-foreground: #20201e;
+
+  --popover: #fffdfa;
+  --popover-foreground: #20201e;
+
+  /* -------------------------------------------------------
+     Brand
+     ------------------------------------------------------- */
+
+  --primary: #f4773c;
+  --primary-foreground: #ffffff;
+
+  --primary-soft: #fff0e8;
+  --primary-muted: #f9d9c8;
+
+  /* -------------------------------------------------------
+     Secondary
+     ------------------------------------------------------- */
+
+  --secondary: #eeece6;
+  --secondary-foreground: #3b3a36;
+
+  --muted: #f1efe9;
+  --muted-foreground: #77736b;
+
+  --accent: #f4eee7;
+  --accent-foreground: #514b43;
+
+  /* -------------------------------------------------------
+     Semantic
+     ------------------------------------------------------- */
+
+  --success: #5d8a45;
+  --success-soft: #edf5e9;
+
+  --warning: #d99a28;
+  --warning-soft: #fff6df;
+
+  --danger: #d95c4f;
+  --danger-soft: #fff0ed;
+
+  /* -------------------------------------------------------
+     Dashboard palette
+     ------------------------------------------------------- */
+
+  --lavender: #7563a8;
+  --lavender-soft: #f1edfa;
+
+  --blue: #6585a8;
+  --blue-soft: #edf3f8;
+
+  --olive: #7c865b;
+  --olive-soft: #f0f2e8;
+
+  --gold: #d3a33a;
+  --gold-soft: #faf3df;
+
+  /* -------------------------------------------------------
+     Borders / inputs
+     ------------------------------------------------------- */
+
+  --border: #e7e2da;
+  --input: #ded8ce;
+  --ring: #f4773c;
+
+  /* -------------------------------------------------------
+     Surfaces
+     ------------------------------------------------------- */
+
+  --surface-1: #fffdfa;
+  --surface-2: #f7f5f0;
+  --surface-3: #eeece6;
+
+  /* -------------------------------------------------------
+     Radius
+     ------------------------------------------------------- */
+
+  --radius: 1rem;
+
+  /* -------------------------------------------------------
+     Charts
+     ------------------------------------------------------- */
+
+  --chart-primary: #f4773c;
+  --chart-secondary: #7563a8;
+  --chart-success: #5d8a45;
+  --chart-warning: #d3a33a;
+  --chart-blue: #6585a8;
+
+  /* -------------------------------------------------------
+     Shadows
+     ------------------------------------------------------- */
+
+  --shadow-sm:
+    0 1px 2px rgba(48, 42, 35, 0.035);
+
+  --shadow-md:
+    0 8px 30px rgba(48, 42, 35, 0.055);
+
+  --shadow-lg:
+    0 20px 55px rgba(48, 42, 35, 0.075);
+
+  --shadow-card:
+    0 2px 12px rgba(48, 42, 35, 0.035);
+
+  --shadow-primary:
+    0 8px 24px rgba(244, 119, 60, 0.18);
+}
+
+/* =========================================================
+   TAILWIND THEME TOKENS
+   ========================================================= */
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+
+  --color-lavender: var(--lavender);
+  --color-blue: var(--blue);
+  --color-olive: var(--olive);
+  --color-gold: var(--gold);
+
+  --radius-sm: calc(var(--radius) - 0.5rem);
+  --radius-md: calc(var(--radius) - 0.25rem);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 0.25rem);
+  --radius-2xl: calc(var(--radius) + 0.5rem);
+}
+
+/* =========================================================
+   BASE
+   ========================================================= */
+
+* {
+  border-color: var(--border);
+}
+
+html {
+  min-height: 100%;
+  scroll-behavior: smooth;
+  background: var(--background);
+}
+
+body {
+  min-height: 100%;
+  margin: 0;
+
+  background:
+    radial-gradient(
+      circle at 85% 0%,
+      rgba(244, 119, 60, 0.055),
+      transparent 28rem
+    ),
+    radial-gradient(
+      circle at 5% 100%,
+      rgba(117, 99, 168, 0.025),
+      transparent 24rem
+    ),
+    var(--background);
+
+  color: var(--foreground);
+
+  font-family:
+    var(--font-geist-sans),
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  text-rendering: optimizeLegibility;
+}
+
+/* =========================================================
+   TEXT
+   ========================================================= */
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  text-wrap: balance;
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* =========================================================
+   SELECTION
+   ========================================================= */
+
+::selection {
+  background: var(--primary-muted);
+  color: #8d3f1c;
+}
+
+/* =========================================================
+   SCROLLBAR
+   ========================================================= */
+
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d9d3c9;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #bdb6aa;
+}
+
+/* =========================================================
+   FOCUS
+   ========================================================= */
+
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* =========================================================
+   HABITBOT CARD
+   ========================================================= */
+
+.habitbot-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 1.25rem;
+
+  box-shadow: var(--shadow-card);
+
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease;
+}
+
+@media (hover: hover) {
+  .habitbot-card:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+  }
+}
+
+/* =========================================================
+   BRAND UTILITIES
+   ========================================================= */
+
+.habitbot-orange {
+  background:
+    linear-gradient(
+      135deg,
+      #f4773c 0%,
+      #f68b52 100%
+    );
+
+  color: #ffffff;
+}
+
+.habitbot-soft-orange {
+  background: #fff0e8;
+  color: #d95f25;
+}
+
+.habitbot-soft-green {
+  background: #edf5e9;
+  color: #557d40;
+}
+
+.habitbot-soft-purple {
+  background: #f1edfa;
+  color: #675493;
+}
+
+.habitbot-soft-blue {
+  background: #edf3f8;
+  color: #557493;
+}
+
+.habitbot-soft-gold {
+  background: #faf3df;
+  color: #9c7521;
+}
+
+/* =========================================================
+   PREMIUM SURFACES
+   ========================================================= */
+
+.habitbot-surface {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+}
+
+.habitbot-glass {
+  background: rgba(255, 253, 250, 0.82);
+  border: 1px solid rgba(231, 226, 218, 0.85);
+
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.habitbot-divider {
+  height: 1px;
+  width: 100%;
+  background: var(--border);
+}
+
+/* =========================================================
+   BUTTON EFFECTS
+   ========================================================= */
+
+.habitbot-primary-button {
+  background:
+    linear-gradient(
+      135deg,
+      #f4773c,
+      #f68b52
+    );
+
+  color: #ffffff;
+
+  box-shadow: var(--shadow-primary);
+
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    filter 180ms ease;
+}
+
+.habitbot-primary-button:hover {
+  transform: translateY(-1px);
+
+  box-shadow:
+    0 12px 28px rgba(244, 119, 60, 0.24);
+
+  filter: brightness(1.02);
+}
+
+.habitbot-primary-button:active {
+  transform: translateY(0);
+}
+
+/* =========================================================
+   ANIMATIONS
+   ========================================================= */
+
+@keyframes habitbot-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes habitbot-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes habitbot-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes habitbot-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.animate-habitbot-fade-in {
+  animation:
+    habitbot-fade-in
+    350ms
+    ease-out
+    both;
+}
+
+.animate-habitbot-scale-in {
+  animation:
+    habitbot-scale-in
+    220ms
+    ease-out
+    both;
+}
+
+.animate-habitbot-slide-in {
+  animation:
+    habitbot-slide-in
+    250ms
+    ease-out
+    both;
+}
+
+.animate-habitbot-pulse {
+  animation:
+    habitbot-pulse
+    1.8s
+    ease-in-out
+    infinite;
+}
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 640px) {
+  html {
+    font-size: 15px;
+  }
+
+  body {
+    overflow-x: hidden;
+  }
+
+  .habitbot-card {
+    border-radius: 1rem;
+  }
+}
+
+/* =========================================================
+   TABLET
+   ========================================================= */
+
+@media (min-width: 641px) and (max-width: 1024px) {
+  body {
+    overflow-x: hidden;
+  }
+}
+
+/* =========================================================
+   REDUCED MOTION
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

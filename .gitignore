@@ -1,0 +1,31 @@
+
+# Dependencies
+**/node_modules/
+
+# Build outputs
+**/dist/
+**/build/
+**/.next/
+**/coverage/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Test environment files
+.env.test
+.env.test.*
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS and editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Temporary files
+*.tsbuildinfo
