@@ -1,18 +1,21 @@
+
 import { prisma } from "../../database/prisma.js";
+
 import {
-    comparePassword,
-    hashPassword
+  comparePassword,
+  hashPassword
 } from "../../common/utils/password.js";
 
 import { AppError } from "../../common/errors/app.error.js";
 
 import type {
-    AuthResponse,
-    AuthUser
+  AuthResponse,
+  AuthUser
 } from "./auth.types.js";
+
 import type {
-    RegisterInput,
-    LoginInput
+  RegisterInput,
+  LoginInput
 } from "./auth.schema.js";
 
 import crypto from "node:crypto";
@@ -23,22 +26,16 @@ import {
   signRefreshToken
 } from "../../common/utils/jwt.js";
 
+
 function hashRefreshToken(token: string): string {
-    return crypto
-        .createHash("sha256")
-        .update(token)
-        .digest("hex");
+  return crypto
+    .createHash("sha256")
+    .update(token)
+    .digest("hex");
 }
+
 
 function getRefreshTokenExpiry(): Date {
-    const expiresAt = new Date();
-
-    expiresAt.setDate(expiresAt.getDate() + 30);
-
-    return expiresAt;
-}
-
-function getRefreshSessionExpiry(): Date {
   const expiresAt = new Date();
 
   expiresAt.setDate(expiresAt.getDate() + 30);
@@ -46,162 +43,197 @@ function getRefreshSessionExpiry(): Date {
   return expiresAt;
 }
 
-function toAuthUser(user: {
-    id: string;
-    name: string;
-    email: string;
-}): AuthUser {
-    return {
-        id: user.id,
-        name: user.name,
-        email: user.email
-    };
-}
 
 function getSessionMetadata(
-    userAgent?: string,
-    ipAddress?: string
+  userAgent?: string,
+  ipAddress?: string
 ): {
-    userAgent?: string;
-    ipAddress?: string;
+  userAgent?: string;
+  ipAddress?: string;
 } {
-    return {
-        ...(userAgent !== undefined && { userAgent }),
-        ...(ipAddress !== undefined && { ipAddress })
-    };
+  return {
+    ...(userAgent !== undefined && { userAgent }),
+    ...(ipAddress !== undefined && { ipAddress })
+  };
 }
+
+
+function toAuthUser(user: {
+  id: string;
+  name: string;
+  email: string;
+  onboardingCompleted: boolean;
+}): AuthUser {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    onboardingCompleted: user.onboardingCompleted
+  };
+}
+
+
+// REGISTER USER
 
 export async function registerUser(
-    input: RegisterInput,
-    userAgent?: string,
-    ipAddress?: string
+  input: RegisterInput,
+  userAgent?: string,
+  ipAddress?: string
 ): Promise<AuthResponse> {
-    const existingUser = await prisma.user.findUnique({
-        where: {
-            email: input.email
-        }
-    });
 
-    if (existingUser) {
-        throw new AppError(
-            "An account with this email already exists",
-            409,
-            "EMAIL_ALREADY_EXISTS"
-        );
+  const existingUser = await prisma.user.findUnique({
+    where: {
+      email: input.email
     }
+  });
 
-    const passwordHash = await hashPassword(input.password);
-
-    const user = await prisma.user.create({
-        data: {
-            name: input.name,
-            email: input.email,
-            passwordHash
-        }
-    });
-
-    const session = await prisma.refreshSession.create({
-        data: {
-            userId: user.id,
-            tokenHash: "pending",
-            expiresAt: getRefreshTokenExpiry(),
-            ...getSessionMetadata(userAgent, ipAddress)
-        }
-    });
-
-    const accessToken = signAccessToken(user.id);
-
-    const refreshToken = signRefreshToken(
-        user.id,
-        session.id
+  if (existingUser) {
+    throw new AppError(
+      "An account with this email already exists",
+      409,
+      "EMAIL_ALREADY_EXISTS"
     );
+  }
 
-    await prisma.refreshSession.update({
-        where: {
-            id: session.id
-        },
-        data: {
-            tokenHash: hashRefreshToken(refreshToken)
-        }
-    });
+  const passwordHash = await hashPassword(input.password);
 
-    return {
-        user: toAuthUser(user),
-        accessToken,
-        refreshToken
-    };
+  const user = await prisma.user.create({
+    data: {
+      name: input.name,
+      email: input.email,
+      passwordHash
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      onboardingCompleted: true
+    }
+  });
+
+  const session = await prisma.refreshSession.create({
+    data: {
+      userId: user.id,
+      tokenHash: "pending",
+      expiresAt: getRefreshTokenExpiry(),
+      ...getSessionMetadata(userAgent, ipAddress)
+    }
+  });
+
+  const accessToken = signAccessToken(user.id);
+
+  const refreshToken = signRefreshToken(
+    user.id,
+    session.id
+  );
+
+  await prisma.refreshSession.update({
+    where: {
+      id: session.id
+    },
+    data: {
+      tokenHash: hashRefreshToken(refreshToken)
+    }
+  });
+
+  return {
+    user: toAuthUser(user),
+    accessToken,
+    refreshToken
+  };
 }
+
+
+// LOGIN USER
 
 export async function loginUser(
-    input: LoginInput,
-    userAgent?: string,
-    ipAddress?: string
+  input: LoginInput,
+  userAgent?: string,
+  ipAddress?: string
 ): Promise<AuthResponse> {
-    const user = await prisma.user.findUnique({
-        where: {
-            email: input.email
-        }
-    });
 
-    if (!user) {
-        throw new AppError(
-            "Invalid email or password",
-            401,
-            "INVALID_CREDENTIALS"
-        );
+  const user = await prisma.user.findUnique({
+    where: {
+      email: input.email
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      passwordHash: true,
+      onboardingCompleted: true
     }
+  });
 
-    const passwordValid = await comparePassword(
-        input.password,
-        user.passwordHash
+  if (!user) {
+    throw new AppError(
+      "Invalid email or password",
+      401,
+      "INVALID_CREDENTIALS"
     );
+  }
 
-    if (!passwordValid) {
-        throw new AppError(
-            "Invalid email or password",
-            401,
-            "INVALID_CREDENTIALS"
-        );
+  const passwordValid = await comparePassword(
+    input.password,
+    user.passwordHash
+  );
+
+  if (!passwordValid) {
+    throw new AppError(
+      "Invalid email or password",
+      401,
+      "INVALID_CREDENTIALS"
+    );
+  }
+
+  const session = await prisma.refreshSession.create({
+    data: {
+      userId: user.id,
+      tokenHash: "pending",
+      expiresAt: getRefreshTokenExpiry(),
+      ...getSessionMetadata(userAgent, ipAddress)
     }
+  });
 
-    const session = await prisma.refreshSession.create({
-        data: {
-            userId: user.id,
-            tokenHash: "pending",
-            expiresAt: getRefreshTokenExpiry(),
-            ...getSessionMetadata(userAgent, ipAddress)
-        }
-    });
+  const accessToken = signAccessToken(user.id);
 
-    const accessToken = signAccessToken(user.id);
+  const refreshToken = signRefreshToken(
+    user.id,
+    session.id
+  );
 
-    const refreshToken = signRefreshToken(
-        user.id,
-        session.id
-    );
+  await prisma.refreshSession.update({
+    where: {
+      id: session.id
+    },
+    data: {
+      tokenHash: hashRefreshToken(refreshToken)
+    }
+  });
 
-    await prisma.refreshSession.update({
-        where: {
-            id: session.id
-        },
-        data: {
-            tokenHash: hashRefreshToken(refreshToken)
-        }
-    });
-
-    return {
-        user: toAuthUser(user),
-        accessToken,
-        refreshToken
-    };
+  return {
+    user: toAuthUser(user),
+    accessToken,
+    refreshToken
+  };
 }
+
+
+// GET CURRENT USER
 
 export async function getCurrentUser(
   userId: string
 ): Promise<AuthUser> {
+
   const user = await prisma.user.findUnique({
     where: {
       id: userId
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      onboardingCompleted: true
     }
   });
 
@@ -216,11 +248,15 @@ export async function getCurrentUser(
   return toAuthUser(user);
 }
 
+
+// REFRESH ACCESS TOKEN
+
 export async function refreshAccessToken(
   refreshToken: string,
   userAgent?: string,
   ipAddress?: string
 ): Promise<AuthResponse> {
+
   let payload;
 
   try {
@@ -238,7 +274,14 @@ export async function refreshAccessToken(
       id: payload.sessionId
     },
     include: {
-      user: true
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          onboardingCompleted: true
+        }
+      }
     }
   });
 
@@ -329,9 +372,13 @@ export async function refreshAccessToken(
   };
 }
 
+
+// LOGOUT USER
+
 export async function logoutUser(
   refreshToken: string
 ): Promise<void> {
+
   let payload;
 
   try {

@@ -1,3 +1,4 @@
+
 import apiClient from "./client";
 import type { MealType } from "./food-logs";
 
@@ -31,10 +32,19 @@ export interface TodayNutritionMeal {
   items: TodayNutritionItem[];
 }
 
+export interface NutritionGoals {
+  isAvailable: boolean;
+  missingFields: string[];
+  targets: NutritionTotals | null;
+  calculationNote: string | null;
+}
+
 export interface TodayNutrition {
   date: string;
   totals: NutritionTotals;
   meals: TodayNutritionMeal[];
+  goals: NutritionGoals;
+  remaining: NutritionTotals | null;
 }
 
 export async function getTodayNutrition(): Promise<TodayNutrition> {

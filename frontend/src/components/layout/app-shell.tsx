@@ -1,4 +1,10 @@
+
 "use client";
+
+import { useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
+
+import { useAuth } from "@/providers/auth-provider";
 
 import { AppHeader } from "./app-header";
 import { AppSidebar } from "./app-sidebar";
@@ -9,6 +15,44 @@ export function AppShell({
 }: {
   children: React.ReactNode;
 }) {
+  const { user, isLoading, isAuthenticated } = useAuth();
+
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (isLoading) return;
+
+    if (!isAuthenticated) {
+      router.replace("/login");
+      return;
+    }
+
+    if (user && !user.onboardingCompleted) {
+      router.replace("/onboarding");
+    }
+  }, [
+    isLoading,
+    isAuthenticated,
+    user,
+    router,
+    pathname,
+  ]);
+
+  if (
+    isLoading ||
+    !isAuthenticated ||
+    (user && !user.onboardingCompleted)
+  ) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="text-sm text-muted-foreground">
+          Loading HabitBot...
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <AppSidebar />

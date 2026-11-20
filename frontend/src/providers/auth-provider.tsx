@@ -32,11 +32,11 @@ interface AuthContextValue {
 
   login: (
     input: LoginInput
-  ) => Promise<void>;
+  ) => Promise<AuthUser>;
 
   register: (
     input: RegisterInput
-  ) => Promise<void>;
+  ) => Promise<AuthUser>;
 
   logout: () => Promise<void>;
 }
@@ -84,22 +84,24 @@ export function AuthProvider({
 
   async function login(
     input: LoginInput
-  ) {
-    const auth =
-      await loginUser(input);
+  ): Promise<AuthUser> {
+    const auth = await loginUser(input);
 
     saveAuth(auth);
     setUser(auth.user);
+
+    return auth.user;
   }
 
   async function register(
     input: RegisterInput
-  ) {
-    const auth =
-      await registerUser(input);
+  ): Promise<AuthUser> {
+    const auth = await registerUser(input);
 
     saveAuth(auth);
     setUser(auth.user);
+
+    return auth.user;
   }
 
   async function logout() {

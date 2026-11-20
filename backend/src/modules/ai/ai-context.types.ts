@@ -1,15 +1,20 @@
+
 export interface AIUserContext {
   user: {
     id: string;
     name: string;
     timezone: string;
+    dateOfBirth: string | null;
+    sex: string | null;
+    heightCm: number | null;
+    weightKg: number | null;
     dietType: string | null;
     primaryGoal: string | null;
-    activityLevel: string | null;
   };
 
   today: {
     date: string;
+    localTime: string;
 
     habits: {
       total: number;

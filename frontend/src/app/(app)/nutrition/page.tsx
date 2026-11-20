@@ -21,6 +21,8 @@ import {
     type NutritionTotals,
 } from "@/lib/api/nutrition";
 
+import { NutritionProgress } from "@/components/nutrition/nutrition-progress";
+
 const mealOptions: { value: MealType; label: string }[] = [
     { value: "BREAKFAST", label: "Breakfast" },
     { value: "MORNING_SNACK", label: "Morning snack" },
@@ -83,33 +85,6 @@ function getFoodPortions(food: Food): {
     });
 }
 
-function MacroCard({
-    label,
-    value,
-    unit,
-    color,
-}: {
-    label: string;
-    value: number;
-    unit: string;
-    color: string;
-}) {
-    return (
-        <div className="rounded-2xl border border-[#ebe7df] bg-[#fffdfa] p-5">
-            <div className="mb-3 flex items-center gap-2">
-                <span className={`h-2.5 w-2.5 rounded-full ${color}`} />
-                <p className="text-sm font-medium text-[#77756f]">{label}</p>
-            </div>
-
-            <p className="text-2xl font-semibold tracking-tight text-[#292820]">
-                {formatNumber(value, 1)}
-                <span className="ml-1 text-sm font-normal text-[#89867f]">
-                    {unit}
-                </span>
-            </p>
-        </div>
-    );
-}
 
 function MealLabel({ mealType }: { mealType: MealType }) {
     return (
@@ -307,40 +282,12 @@ export default function NutritionPage() {
                 </div>
             ) : (
                 <>
-                    <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-                        <div className="rounded-2xl bg-[#f4773c] p-5 text-white sm:col-span-2 xl:col-span-1">
-                            <p className="text-sm text-white/80">Calories consumed</p>
-                            <p className="mt-3 text-3xl font-semibold">
-                                {formatNumber(totals.calories)}
-                            </p>
-                            <p className="mt-1 text-sm text-white/80">kcal today</p>
-                        </div>
 
-                        <MacroCard
-                            label="Protein"
-                            value={totals.protein}
-                            unit="g"
-                            color="bg-[#7c865b]"
-                        />
-                        <MacroCard
-                            label="Carbohydrates"
-                            value={totals.carbohydrate}
-                            unit="g"
-                            color="bg-[#d3a33a]"
-                        />
-                        <MacroCard
-                            label="Fat"
-                            value={totals.fat}
-                            unit="g"
-                            color="bg-[#7563a8]"
-                        />
-                        <MacroCard
-                            label="Fiber"
-                            value={totals.fiber}
-                            unit="g"
-                            color="bg-[#6585a8]"
-                        />
-                    </section>
+                    <NutritionProgress
+                        totals={totals}
+                        goals={nutrition!.goals}
+                        remaining={nutrition!.remaining}
+                    />
 
                     <div className="grid items-start gap-6 xl:grid-cols-[1.05fr_0.95fr]">
                         <section className="rounded-2xl border border-[#ebe7df] bg-[#fffdfa] p-5 sm:p-6">

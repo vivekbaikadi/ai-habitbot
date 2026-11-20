@@ -18,6 +18,8 @@ import { WeeklyActivity } from "@/components/dashboard/weekly-activity";
 import { Achievements } from "@/components/dashboard/achievements";
 import { AICoachCard } from "@/components/dashboard/ai-coach-card";
 
+import { ProfileSummary } from "@/components/dashboard/profile-summary";
+
 export default function DashboardPage() {
   const { user } = useAuth();
 
@@ -75,6 +77,13 @@ export default function DashboardPage() {
       <DashboardWelcome
         name={data.user.name}
         date={data.date}
+      />
+
+      <ProfileSummary
+        primaryGoal={data.user.profile.primaryGoal}
+        dietType={data.user.dietType}
+        heightCm={data.user.profile.heightCm}
+        weightKg={data.user.profile.weightKg}
       />
 
       {/* =====================================================

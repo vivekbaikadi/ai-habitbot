@@ -24,17 +24,19 @@ export function RegisterForm() {
     setIsLoading(true);
 
     try {
-      await register({
+      const authenticatedUser = await register({
         name,
         email,
         password,
       });
 
-      window.location.href = "/dashboard";
+      window.location.href = authenticatedUser.onboardingCompleted
+        ? "/dashboard"
+        : "/onboarding";
     } catch (error: any) {
       setError(
         error?.response?.data?.error?.message ??
-          "Unable to create your account"
+        "Unable to create your account"
       );
     } finally {
       setIsLoading(false);

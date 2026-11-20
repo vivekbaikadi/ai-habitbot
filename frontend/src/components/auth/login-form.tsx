@@ -23,16 +23,18 @@ export function LoginForm() {
     setIsLoading(true);
 
     try {
-      await login({
+      const authenticatedUser = await login({
         email,
         password,
       });
 
-      window.location.href = "/dashboard";
+      window.location.href = authenticatedUser.onboardingCompleted
+        ? "/dashboard"
+        : "/onboarding";
     } catch (error: any) {
       setError(
         error?.response?.data?.error?.message ??
-          "Invalid email or password"
+        "Invalid email or password"
       );
     } finally {
       setIsLoading(false);

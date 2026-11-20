@@ -17,6 +17,9 @@ import aiRoutes from "./modules/ai/ai.routes.js";
 import analyticsRoutes from "./modules/analytics/analytics.routes.js";
 
 
+import profileRoutes from "./modules/profile/profile.routes.js";
+
+
 import swaggerUi from "swagger-ui-express";
 
 import {
@@ -81,6 +84,7 @@ app.get("/health/db", async (_req, res) => {
 
 app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(openapiDocument));
 app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/profile", profileRoutes);
 app.use("/api/v1/goals", goalRoutes);
 app.use("/api/v1/habits", habitRoutes);
 app.use("/api/v1", completionRoutes);

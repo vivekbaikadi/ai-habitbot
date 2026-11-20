@@ -31,10 +31,28 @@ export interface DashboardResponse {
     id: string;
     name: string;
     timezone: string;
+
+    profile: {
+      primaryGoal:
+        | "WEIGHT_LOSS"
+        | "WEIGHT_MAINTENANCE"
+        | "MUSCLE_GAIN"
+        | "GENERAL_HEALTH"
+        | null;
+
+      heightCm: number | string | null;
+      weightKg: number | string | null;
+    };
+
+    dietType:
+      | "VEGETARIAN"
+      | "NON_VEGETARIAN"
+      | "EGGETARIAN"
+      | "VEGAN"
+      | null;
   };
 
   goals: DashboardGoal[];
-
   habits: DashboardHabit[];
 }
 

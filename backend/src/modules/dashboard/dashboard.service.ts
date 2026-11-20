@@ -20,10 +20,19 @@ export async function getTodayDashboard(
 
           profile: {
             select: {
-              timezone: true
-            }
-          }
-        }
+              timezone: true,
+              primaryGoal: true,
+              heightCm: true,
+              weightKg: true,
+            },
+          },
+
+          dietaryPreference: {
+            select: {
+              dietType: true,
+            },
+          },
+        },
       }),
 
       prisma.userGoal.findMany({
@@ -118,7 +127,15 @@ export async function getTodayDashboard(
     user: {
       id: user.id,
       name: user.name,
-      timezone
+      timezone,
+
+      profile: {
+        primaryGoal: user.profile?.primaryGoal ?? null,
+        heightCm: user.profile?.heightCm ?? null,
+        weightKg: user.profile?.weightKg ?? null,
+      },
+
+      dietType: user.dietaryPreference?.dietType ?? null,
     },
 
     goals,

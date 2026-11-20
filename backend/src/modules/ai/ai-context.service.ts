@@ -1,3 +1,4 @@
+
 import { prisma } from "../../database/prisma.js";
 
 import type {
@@ -38,7 +39,10 @@ export async function buildAIUserContext(
                     select: {
                         timezone: true,
                         primaryGoal: true,
-                        activityLevel: true
+                        dateOfBirth: true,
+                        sex: true,
+                        heightCm: true,
+                        weightKg: true
                     }
                 },
 
@@ -73,6 +77,21 @@ export async function buildAIUserContext(
         throw new Error("User not found");
     }
 
+    // Get the user's timezone.
+    const timezone =
+        user.profile?.timezone ?? "Asia/Kolkata";
+
+    // Get the current local time in the user's timezone.
+    const localTime = new Date().toLocaleTimeString(
+        "en-GB",
+        {
+            timeZone: timezone,
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false
+        }
+    );
+
     const totalHabits =
         dashboard.habits.length;
 
@@ -101,7 +120,7 @@ export async function buildAIUserContext(
      * The dashboard currently contains
      * today's habit state.
      *
-     * We will obtain historical stats
+     * We obtain historical statistics
      * separately for each active habit.
      */
     const habitsWithStats =
@@ -163,25 +182,40 @@ export async function buildAIUserContext(
         user: {
             id: user.id,
             name: user.name,
-            timezone:
-                user.profile?.timezone ??
-                "Asia/Kolkata",
+            timezone,
+
+            dateOfBirth:
+                user.profile?.dateOfBirth
+                    ? user.profile.dateOfBirth
+                        .toISOString()
+                        .slice(0, 10)
+                    : null,
+
+            sex:
+                user.profile?.sex ?? null,
+
+            heightCm:
+                user.profile?.heightCm !== null &&
+                user.profile?.heightCm !== undefined
+                    ? Number(user.profile.heightCm)
+                    : null,
+
+            weightKg:
+                user.profile?.weightKg !== null &&
+                user.profile?.weightKg !== undefined
+                    ? Number(user.profile.weightKg)
+                    : null,
 
             dietType:
-                user.dietaryPreference
-                    ?.dietType ?? null,
+                user.dietaryPreference?.dietType ?? null,
 
             primaryGoal:
-                user.profile?.primaryGoal ??
-                null,
-
-            activityLevel:
-                user.profile?.activityLevel ??
-                null
+                user.profile?.primaryGoal ?? null
         },
 
         today: {
             date: nutrition.date,
+            localTime,
 
             habits: {
                 total: totalHabits,
@@ -230,8 +264,7 @@ export async function buildAIUserContext(
                 (goal) => ({
                     id: goal.id,
                     title: goal.title,
-                    description:
-                        goal.description
+                    description: goal.description
                 })
             ),
 
@@ -240,8 +273,7 @@ export async function buildAIUserContext(
         dietaryRestrictions: {
             dislikedFoods:
                 dislikedFoods.map(
-                    (item) =>
-                        item.food.name
+                    (item) => item.food.name
                 )
         }
     };
