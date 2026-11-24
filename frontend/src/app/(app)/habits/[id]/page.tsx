@@ -1,911 +1,3 @@
-// "use client";
-
-// import {
-//   ArrowLeft,
-//   CalendarDays,
-//   Check,
-//   ChevronLeft,
-//   ChevronRight,
-//   Circle,
-//   Flame,
-//   Target,
-// } from "lucide-react";
-
-// import { useState } from "react";
-// import { useQuery } from "@tanstack/react-query";
-// import Link from "next/link";
-// import { useParams } from "next/navigation";
-
-// import {
-//   getHabitById,
-//   type Habit,
-// } from "@/lib/api/habits";
-
-// import {
-//   getHabitCompletions,
-//   getHabitStats,
-//   type Completion,
-// } from "@/lib/api/completions";
-
-// function formatFrequency(
-//   frequency: Habit["frequency"]
-// ): string {
-//   switch (frequency) {
-//     case "DAILY":
-//       return "Daily";
-//     case "WEEKLY":
-//       return "Weekly";
-//     case "CUSTOM":
-//       return "Custom";
-//     default:
-//       return frequency;
-//   }
-// }
-
-// function formatDate(date: string): string {
-//   return new Intl.DateTimeFormat("en-US", {
-//     month: "short",
-//     day: "numeric",
-//     year: "numeric",
-//   }).format(new Date(date));
-// }
-
-// function formatShortDate(date: string): string {
-//   return new Intl.DateTimeFormat("en-US", {
-//     month: "short",
-//     day: "numeric",
-//   }).format(new Date(date));
-// }
-
-// function getCompletionLabel(
-//   habit: Habit,
-//   completion: Completion
-// ): string {
-//   if (
-//     habit.targetValue !== null &&
-//     completion.value !== null
-//   ) {
-//     return `${completion.value}${habit.targetUnit
-//       ? ` ${habit.targetUnit}`
-//       : ""
-//       }`;
-//   }
-
-//   return "Completed";
-// }
-
-// type DailyHistory = {
-//   date: string;
-//   value: number;
-//   completed: boolean;
-// };
-
-// function buildDailyHistory(
-//   habit: Habit,
-//   completions: Completion[]
-// ): DailyHistory[] {
-//   const history = new Map<
-//     string,
-//     DailyHistory
-//   >();
-
-//   for (const completion of completions) {
-//     const date = new Date(
-//       completion.completedAt
-//     ).toLocaleDateString("en-CA");
-
-//     const existing = history.get(date);
-
-//     if (habit.targetValue !== null) {
-//       const value =
-//         Number(completion.value ?? 0);
-
-//       if (existing) {
-//         existing.value += value;
-//         existing.completed = true;
-//       } else {
-//         history.set(date, {
-//           date,
-//           value,
-//           completed: true,
-//         });
-//       }
-//     } else {
-//       if (existing) {
-//         existing.completed = true;
-//       } else {
-//         history.set(date, {
-//           date,
-//           value: 0,
-//           completed: true,
-//         });
-//       }
-//     }
-//   }
-
-//   return Array.from(history.values()).sort(
-//     (a, b) =>
-//       new Date(b.date).getTime() -
-//       new Date(a.date).getTime()
-//   );
-// }
-
-// export default function HabitDetailsPage() {
-//   const params = useParams<{
-//     id: string;
-//   }>();
-
-//   const habitId = params.id;
-
-//   const [calendarMonth, setCalendarMonth] = useState(() => {
-//     const today = new Date();
-//     return new Date(today.getFullYear(), today.getMonth(), 1);
-//   });
-
-//   const {
-//     data: habit,
-//     isLoading: habitLoading,
-//     isError: habitError,
-//   } = useQuery({
-//     queryKey: ["habit", habitId],
-//     queryFn: () => getHabitById(habitId),
-//     enabled: Boolean(habitId),
-//   });
-
-//   const {
-//     data: completions = [],
-//     isLoading: completionsLoading,
-//     isError: completionsError,
-//   } = useQuery({
-//     queryKey: [
-//       "habit",
-//       habitId,
-//       "completions",
-//     ],
-//     queryFn: () =>
-//       getHabitCompletions(habitId),
-//     enabled: Boolean(habitId),
-//   });
-
-//   const {
-//     data: stats,
-//     isLoading: statsLoading,
-//     isError: statsError,
-//   } = useQuery({
-//     queryKey: ["habit", habitId, "stats"],
-//     queryFn: () => getHabitStats(habitId),
-//     enabled: Boolean(habitId),
-//   });
-
-//   if (habitLoading) {
-//     return (
-//       <main className="space-y-6">
-//         <div className="habitbot-card p-8 text-center">
-//           <p className="text-sm text-muted-foreground">
-//             Loading habit...
-//           </p>
-//         </div>
-//       </main>
-//     );
-//   }
-
-//   if (habitError || !habit) {
-//     return (
-//       <main className="space-y-6">
-//         <Link
-//           href="/habits"
-//           className="
-//             inline-flex
-//             items-center
-//             gap-2
-//             text-sm
-//             font-medium
-//             text-muted-foreground
-//             transition
-//             hover:text-foreground
-//           "
-//         >
-//           <ArrowLeft className="h-4 w-4" />
-//           Back to habits
-//         </Link>
-
-//         <div className="habitbot-card p-8 text-center">
-//           <p className="text-sm font-medium text-foreground">
-//             We couldn't load this habit.
-//           </p>
-
-//           <p className="mt-1 text-sm text-muted-foreground">
-//             The habit may no longer exist.
-//           </p>
-//         </div>
-//       </main>
-//     );
-//   }
-
-//   const isMeasurable =
-//     habit.targetValue !== null;
-
-//   const target =
-//     isMeasurable
-//       ? Number(habit.targetValue)
-//       : null;
-
-//   const today =
-//     new Date().toLocaleDateString("en-CA");
-
-//   const todayCompletions =
-//     completions.filter(
-//       (completion) =>
-//         new Date(
-//           completion.completedAt
-//         ).toLocaleDateString("en-CA") ===
-//         today
-//     );
-
-//   const todayValue =
-//     todayCompletions.reduce(
-//       (sum, completion) =>
-//         sum +
-//         Number(
-//           completion.value ?? 0
-//         ),
-//       0
-//     );
-
-//   const todayCompleted =
-//     isMeasurable
-//       ? target !== null &&
-//       todayValue >= target
-//       : todayCompletions.length > 0;
-
-//   const todayProgress =
-//     isMeasurable &&
-//       target !== null &&
-//       target > 0
-//       ? Math.min(
-//         Math.round(
-//           (todayValue / target) *
-//           100
-//         ),
-//         100
-//       )
-//       : todayCompleted
-//         ? 100
-//         : 0;
-
-//   /*
-//    * Convert completion events into
-//    * one record per calendar day.
-//    *
-//    * Measurable habits:
-//    * multiple entries are summed.
-//    *
-//    * Binary habits:
-//    * multiple entries become one
-//    * completed day.
-//    */
-//   const dailyHistory =
-//     buildDailyHistory(
-//       habit,
-//       completions
-//     );
-
-//   const calendarYear = calendarMonth.getFullYear();
-//   const calendarMonthIndex = calendarMonth.getMonth();
-
-//   const firstDayOfMonth = new Date(
-//     calendarYear,
-//     calendarMonthIndex,
-//     1
-//   );
-
-//   const daysInMonth = new Date(
-//     calendarYear,
-//     calendarMonthIndex + 1,
-//     0
-//   ).getDate();
-
-//   // Monday-first calendar: Monday = 0, Sunday = 6
-//   const startingDayOffset = (firstDayOfMonth.getDay() + 6) % 7;
-
-//   const calendarDays = Array.from(
-//     { length: startingDayOffset + daysInMonth },
-//     (_, index) => {
-//       if (index < startingDayOffset) {
-//         return null;
-//       }
-
-//       return index - startingDayOffset + 1;
-//     }
-//   );
-
-//   const previousMonth = () => {
-//     setCalendarMonth(
-//       new Date(calendarYear, calendarMonthIndex - 1, 1)
-//     );
-//   };
-
-//   const nextMonth = () => {
-//     setCalendarMonth(
-//       new Date(calendarYear, calendarMonthIndex + 1, 1)
-//     );
-//   };
-
-//   const calendarMonthLabel = calendarMonth.toLocaleDateString(
-//     "en-US",
-//     {
-//       month: "long",
-//       year: "numeric",
-//     }
-//   );
-
-//   return (
-//     <main className="space-y-6">
-//       <Link
-//         href="/habits"
-//         className="
-//           inline-flex
-//           items-center
-//           gap-2
-//           text-sm
-//           font-medium
-//           text-muted-foreground
-//           transition
-//           hover:text-foreground
-//         "
-//       >
-//         <ArrowLeft className="h-4 w-4" />
-//         Back to habits
-//       </Link>
-
-//       <section>
-//         <div className="flex items-start gap-4">
-//           <div
-//             className="
-//               flex
-//               h-12
-//               w-12
-//               shrink-0
-//               items-center
-//               justify-center
-//               rounded-2xl
-//               bg-[#f4773c]/10
-//               text-[#f4773c]
-//             "
-//           >
-//             {todayCompleted ? (
-//               <Check className="h-6 w-6" />
-//             ) : (
-//               <Target className="h-6 w-6" />
-//             )}
-//           </div>
-
-//           <div className="min-w-0">
-//             <h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-//               {habit.name}
-//             </h1>
-
-//             <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-//               <span>
-//                 {formatFrequency(
-//                   habit.frequency
-//                 )}
-//               </span>
-
-//               {habit.goal && (
-//                 <>
-//                   <span>•</span>
-
-//                   <span>
-//                     {habit.goal.title}
-//                   </span>
-//                 </>
-//               )}
-//             </div>
-//           </div>
-//         </div>
-
-//         {habit.description && (
-//           <p className="mt-4 max-w-2xl text-sm leading-6 text-muted-foreground">
-//             {habit.description}
-//           </p>
-//         )}
-//       </section>
-
-//       <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
-//         <div className="habitbot-card p-5">
-//           <div className="flex items-center justify-between">
-//             <div>
-//               <p className="text-sm font-medium text-muted-foreground">
-//                 Today's Progress
-//               </p>
-
-//               <div className="mt-2">
-//                 {isMeasurable ? (
-//                   <p className="text-2xl font-semibold text-foreground">
-//                     {todayValue}
-//                     {habit.targetUnit
-//                       ? ` ${habit.targetUnit}`
-//                       : ""}
-
-//                     <span className="text-base font-medium text-muted-foreground">
-//                       {" / "}
-//                       {habit.targetValue}
-//                       {habit.targetUnit
-//                         ? ` ${habit.targetUnit}`
-//                         : ""}
-//                     </span>
-//                   </p>
-//                 ) : (
-//                   <p className="text-2xl font-semibold text-foreground">
-//                     {todayCompleted
-//                       ? "Completed"
-//                       : "Not completed"}
-//                   </p>
-//                 )}
-//               </div>
-//             </div>
-
-//             <div className="text-right">
-//               <p className="text-2xl font-semibold text-[#f4773c]">
-//                 {todayProgress}%
-//               </p>
-//             </div>
-//           </div>
-
-//           <div className="mt-4 h-2 overflow-hidden rounded-full bg-[#eee9e1]">
-//             <div
-//               className="h-full rounded-full bg-[#f4773c] transition-all duration-300"
-//               style={{
-//                 width: `${todayProgress}%`,
-//               }}
-//             />
-//           </div>
-
-//           {isMeasurable &&
-//             target !== null && (
-//               <p className="mt-2 text-xs text-muted-foreground">
-//                 {todayProgress >= 100
-//                   ? "Daily target reached"
-//                   : `${Math.max(
-//                     target - todayValue,
-//                     0
-//                   )}${habit.targetUnit
-//                     ? ` ${habit.targetUnit}`
-//                     : ""
-//                   } remaining`}
-//               </p>
-//             )}
-//         </div>
-
-//         <div className="habitbot-card p-5">
-//           <div className="flex items-center gap-3">
-//             <div
-//               className="
-//                 flex
-//                 h-10
-//                 w-10
-//                 items-center
-//                 justify-center
-//                 rounded-xl
-//                 bg-[#7c865b]/10
-//                 text-[#7c865b]
-//               "
-//             >
-//               <Flame className="h-5 w-5" />
-//             </div>
-
-//             <div>
-//               <p className="text-sm font-medium text-muted-foreground">
-//                 Activity
-//               </p>
-
-//               <p className="mt-1 text-2xl font-semibold text-foreground">
-//                 {dailyHistory.length}
-//               </p>
-
-//               <p className="text-xs text-muted-foreground">
-//                 days tracked
-//               </p>
-//             </div>
-//           </div>
-//         </div>
-//       </section>
-
-//       {/* Streak Statistics */}
-//       <section className="mt-6">
-//         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-//           {/* Current Streak */}
-//           <div className="habitbot-card p-5">
-//             <div className="flex items-center justify-between">
-//               <p className="text-sm font-medium text-gray-500">
-//                 Current Streak
-//               </p>
-//               <Flame className="h-5 w-5 text-orange-500" />
-//             </div>
-
-//             <p className="mt-3 text-3xl font-semibold text-gray-900">
-//               {statsLoading ? "—" : statsError ? "—" : stats?.currentStreak ?? 0}
-//               <span className="ml-2 text-sm font-normal text-gray-500">
-//                 days
-//               </span>
-//             </p>
-
-//             <p className="mt-2 text-sm text-gray-500">
-//               Consecutive days completed
-//             </p>
-//           </div>
-
-//           {/* Longest Streak */}
-//           <div className="habitbot-card p-5">
-//             <div className="flex items-center justify-between">
-//               <p className="text-sm font-medium text-gray-500">
-//                 Longest Streak
-//               </p>
-//               <Target className="h-5 w-5 text-olive-600" />
-//             </div>
-
-//             <p className="mt-3 text-3xl font-semibold text-gray-900">
-//               {statsLoading ? "—" : statsError ? "—" : stats?.longestStreak ?? 0}
-//               <span className="ml-2 text-sm font-normal text-gray-500">
-//                 days
-//               </span>
-//             </p>
-
-//             <p className="mt-2 text-sm text-gray-500">
-//               Your personal best
-//             </p>
-//           </div>
-
-//           {/* Completion Rate */}
-//           <div className="habitbot-card p-5">
-//             <div className="flex items-center justify-between">
-//               <p className="text-sm font-medium text-gray-500">
-//                 Completion Rate
-//               </p>
-//               <CalendarDays className="h-5 w-5 text-purple-500" />
-//             </div>
-
-//             <p className="mt-3 text-3xl font-semibold text-gray-900">
-//               {statsLoading
-//                 ? "—"
-//                 : statsError
-//                   ? "—"
-//                   : `${Math.round(stats?.completionRate ?? 0)}%`}
-//             </p>
-
-//             <p className="mt-2 text-sm text-gray-500">
-//               Across your tracking history
-//             </p>
-//           </div>
-//         </div>
-//       </section>
-
-//       {/* Habit Calendar */}
-//       {/* Calendar and History */}
-//       <section className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
-//         <div className="habitbot-card min-w-0 p-4">
-//           <div className="flex items-center justify-between gap-4">
-//             <div>
-//               <h2 className="text-base font-semibold text-foreground">
-//                 Habit Calendar
-//               </h2>
-//               <p className="mt-1 text-sm text-muted-foreground">
-//                 Track your consistency day by day.
-//               </p>
-//             </div>
-//             <CalendarDays className="h-5 w-5 text-muted-foreground" />
-//           </div>
-
-//           <div className="mt-5 flex items-center justify-between">
-//             <h3 className="text-sm font-semibold text-foreground">
-//               {calendarMonthLabel}
-//             </h3>
-
-//             <div className="flex gap-2">
-//               <button
-//                 type="button"
-//                 onClick={previousMonth}
-//                 aria-label="Previous month"
-//                 className="rounded-lg border border-[#ebe5dc] p-2 transition hover:bg-[#f7f5f0]"
-//               >
-//                 <ChevronLeft className="h-4 w-4" />
-//               </button>
-
-//               <button
-//                 type="button"
-//                 onClick={nextMonth}
-//                 aria-label="Next month"
-//                 className="rounded-lg border border-[#ebe5dc] p-2 transition hover:bg-[#f7f5f0]"
-//               >
-//                 <ChevronRight className="h-4 w-4" />
-//               </button>
-//             </div>
-//           </div>
-
-//           <div className="mt-3 grid grid-cols-7 gap-1.5">
-//             {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(
-//               (day) => (
-//                 <div
-//                   key={day}
-//                   className="py-2 text-center text-xs font-medium text-muted-foreground"
-//                 >
-//                   {day}
-//                 </div>
-//               )
-//             )}
-
-//             {calendarDays.map((day, index) => {
-//               if (day === null) {
-//                 return <div key={`empty-${index}`} />;
-//               }
-
-//               const date = new Date(
-//                 calendarYear,
-//                 calendarMonthIndex,
-//                 day
-//               );
-
-//               const dateKey = [
-//                 calendarYear,
-//                 String(calendarMonthIndex + 1).padStart(2, "0"),
-//                 String(day).padStart(2, "0"),
-//               ].join("-");
-
-//               const isToday = dateKey === today;
-//               const isFuture = dateKey > today;
-
-//               const dayHistory = dailyHistory.find(
-//                 (entry) => entry.date === dateKey
-//               );
-
-//               const isCompleted = isMeasurable
-//                 ? Boolean(
-//                   dayHistory &&
-//                   target !== null &&
-//                   target > 0 &&
-//                   dayHistory.value >= target
-//                 )
-//                 : Boolean(dayHistory?.completed);
-
-//               const isMissed = !isFuture && !isCompleted;
-
-//               return (
-//                 <div
-//                   key={dateKey}
-//                   title={`${dateKey}: ${isFuture
-//                     ? "Upcoming"
-//                     : isCompleted
-//                       ? "Completed"
-//                       : isMissed
-//                         ? "Not completed"
-//                         : "No activity"
-//                     }`}
-//                   className={`
-//             flex h-9 w-full items-center justify-center
-//             rounded-lg border text-sm font-medium transition
-//             ${isCompleted
-//                       ? "border-[#7c865b] bg-[#7c865b] text-white"
-//                       : isToday
-//                         ? "border-[#f4773c] bg-[#f4773c]/10 text-[#f4773c]"
-//                         : isMissed
-//                           ? "border-[#ebe5dc] bg-[#f7f5f0] text-muted-foreground"
-//                           : "border-[#ebe5dc] text-muted-foreground"
-//                     }
-//           `}
-//                 >
-//                   {day}
-//                 </div>
-//               );
-//             })}
-//           </div>
-
-//           <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted-foreground">
-//             <div className="flex items-center gap-2">
-//               <span className="h-3 w-3 rounded-sm bg-[#7c865b]" />
-//               Completed
-//             </div>
-
-//             <div className="flex items-center gap-2">
-//               <span className="h-3 w-3 rounded-sm bg-[#f7f5f0] ring-1 ring-[#ebe5dc]" />
-//               Not completed
-//             </div>
-
-//             <div className="flex items-center gap-2">
-//               <span className="h-3 w-3 rounded-sm border-2 border-[#f4773c]" />
-//               Today
-//             </div>
-
-//             <div className="flex items-center gap-2">
-//               <span className="h-3 w-3 rounded-sm border border-[#ebe5dc]" />
-//               Upcoming
-//             </div>
-//           </div>
-//         </div>
-
-//         {/* Habit History */}
-//         <div className="habitbot-card min-w-0 p-4">
-//           <div className="flex items-center justify-between gap-4">
-//             <div>
-//               <h2 className="text-base font-semibold text-foreground">
-//                 History
-//               </h2>
-
-//               <p className="mt-1 text-sm text-muted-foreground">
-//                 Your recorded activity for this habit.
-//               </p>
-//             </div>
-
-//             <CalendarDays className="h-5 w-5 text-muted-foreground" />
-//           </div>
-
-//           {completionsLoading && (
-//             <div className="mt-6 py-6 text-center">
-//               <p className="text-sm text-muted-foreground">
-//                 Loading history...
-//               </p>
-//             </div>
-//           )}
-
-//           {completionsError && (
-//             <div className="mt-6 py-6 text-center">
-//               <p className="text-sm text-muted-foreground">
-//                 We couldn't load the habit history.
-//               </p>
-//             </div>
-//           )}
-
-//           {!completionsLoading &&
-//             !completionsError &&
-//             dailyHistory.length === 0 && (
-//               <div className="mt-6 rounded-xl bg-[#f7f5f0] p-6 text-center">
-//                 <p className="text-sm font-medium text-foreground">
-//                   No activity yet
-//                 </p>
-
-//                 <p className="mt-1 text-sm text-muted-foreground">
-//                   Complete this habit to start building
-//                   your history.
-//                 </p>
-//               </div>
-//             )}
-
-//           {!completionsLoading &&
-//             !completionsError &&
-//             dailyHistory.length > 0 && (
-//               <div className="mt-5 divide-y divide-[#ebe5dc]">
-//                 {dailyHistory
-//                   .slice(0, 14)
-//                   .map((day) => {
-//                     const dayProgress =
-//                       isMeasurable &&
-//                         target !== null &&
-//                         target > 0
-//                         ? Math.min(
-//                           Math.round(
-//                             (day.value /
-//                               target) *
-//                             100
-//                           ),
-//                           100
-//                         )
-//                         : day.completed
-//                           ? 100
-//                           : 0;
-
-//                     return (
-//                       <div
-//                         key={day.date}
-//                         className="py-4"
-//                       >
-//                         <div className="flex items-center justify-between gap-4">
-//                           <div className="flex items-center gap-3">
-//                             <div
-//                               className={`
-//                               flex
-//                               h-8
-//                               w-8
-//                               shrink-0
-//                               items-center
-//                               justify-center
-//                               rounded-lg
-//                               ${dayProgress >=
-//                                   100
-//                                   ? "bg-[#7c865b]/10 text-[#7c865b]"
-//                                   : "bg-[#f4773c]/10 text-[#f4773c]"
-//                                 }
-//                             `}
-//                             >
-//                               {dayProgress >=
-//                                 100 ? (
-//                                 <Check className="h-4 w-4" />
-//                               ) : (
-//                                 <Circle className="h-4 w-4" />
-//                               )}
-//                             </div>
-
-//                             <div>
-//                               <p className="text-sm font-medium text-foreground">
-//                                 {formatShortDate(
-//                                   day.date
-//                                 )}
-//                               </p>
-
-//                               <p className="text-xs text-muted-foreground">
-//                                 {formatDate(
-//                                   day.date
-//                                 )}
-//                               </p>
-//                             </div>
-//                           </div>
-
-//                           <div className="text-right">
-//                             {isMeasurable ? (
-//                               <>
-//                                 <p className="text-sm font-semibold text-foreground">
-//                                   {day.value}
-//                                   {habit.targetUnit
-//                                     ? ` ${habit.targetUnit}`
-//                                     : ""}
-
-//                                   {" / "}
-
-//                                   {habit.targetValue}
-//                                   {habit.targetUnit
-//                                     ? ` ${habit.targetUnit}`
-//                                     : ""}
-//                                 </p>
-
-//                                 <p
-//                                   className={`
-//                                   mt-0.5
-//                                   text-xs
-//                                   ${dayProgress >=
-//                                       100
-//                                       ? "text-[#7c865b]"
-//                                       : "text-muted-foreground"
-//                                     }
-//                                 `}
-//                                 >
-//                                   {dayProgress >=
-//                                     100
-//                                     ? "Target reached"
-//                                     : `${dayProgress}% complete`}
-//                                 </p>
-//                               </>
-//                             ) : (
-//                               <p className="text-sm font-medium text-[#7c865b]">
-//                                 Completed
-//                               </p>
-//                             )}
-//                           </div>
-//                         </div>
-
-//                         {isMeasurable && (
-//                           <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#eee9e1]">
-//                             <div
-//                               className="h-full rounded-full bg-[#f4773c]"
-//                               style={{
-//                                 width: `${dayProgress}%`,
-//                               }}
-//                             />
-//                           </div>
-//                         )}
-//                       </div>
-//                     );
-//                   })}
-//               </div>
-//             )}
-//         </div>
-//       </section>
-//     </main>
-//   );
-// }
-
-
-
-
-
 
 "use client";
 
@@ -926,7 +18,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 
-import { getHabitById, type Habit } from "@/lib/api/habits";
+import { getHabitById, type Habit, type HabitWeekday } from "@/lib/api/habits";
 import {
   getHabitCompletions,
   getHabitStats,
@@ -944,14 +36,43 @@ function getLocalDateKey(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-function formatDate(date: string): string {
-  const [year, month, day] = date.split("-").map(Number);
+function formatDate(date: string | null | undefined): string {
+  if (!date) return "Not set";
 
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
+  const datePart = date.split("T")[0];
+  const parts = datePart.split("-");
+
+  if (parts.length !== 3) return "Not set";
+
+  const [year, month, day] = parts.map(Number);
+
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day) ||
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > 31
+  ) {
+    return "Not set";
+  }
+
+  const parsedDate = new Date(year, month - 1, day);
+
+  if (
+    parsedDate.getFullYear() !== year ||
+    parsedDate.getMonth() !== month - 1 ||
+    parsedDate.getDate() !== day
+  ) {
+    return "Not set";
+  }
+
+  return new Intl.DateTimeFormat("en-IN", {
     day: "numeric",
+    month: "short",
     year: "numeric",
-  }).format(new Date(year, month - 1, day));
+  }).format(parsedDate);
 }
 
 function formatShortDate(date: string): string {
@@ -974,6 +95,65 @@ function formatFrequency(frequency: Habit["frequency"]): string {
     default:
       return frequency;
   }
+}
+
+const WEEKDAYS: { value: HabitWeekday; label: string }[] = [
+  { value: "MONDAY", label: "Mon" },
+  { value: "TUESDAY", label: "Tue" },
+  { value: "WEDNESDAY", label: "Wed" },
+  { value: "THURSDAY", label: "Thu" },
+  { value: "FRIDAY", label: "Fri" },
+  { value: "SATURDAY", label: "Sat" },
+  { value: "SUNDAY", label: "Sun" },
+];
+
+function formatSchedule(habit: Habit): string {
+  switch (habit.frequency) {
+    case "DAILY":
+      return "Every day";
+
+    case "WEEKLY":
+      return `${habit.weeklyTarget ?? 0} times per week`;
+
+    case "CUSTOM":
+      return (habit.customDays ?? [])
+        .map(
+          (day) =>
+            WEEKDAYS.find((weekday) => weekday.value === day)?.label
+        )
+        .filter(Boolean)
+        .join(", ") || "No days selected";
+
+    default:
+      return formatFrequency(habit.frequency);
+  }
+}
+
+function isScheduledOnDate(habit: Habit, date: string): boolean {
+  const startDate = habit.startDate.slice(0, 10);
+  const endDate = habit.endDate?.slice(0, 10);
+
+  if (date < startDate || (endDate && date > endDate)) {
+    return false;
+  }
+
+  if (habit.frequency === "DAILY" || habit.frequency === "WEEKLY") {
+    return true;
+  }
+
+  const weekdayIndex = new Date(`${date}T00:00:00Z`).getUTCDay();
+
+  const weekdayMap: HabitWeekday[] = [
+    "SUNDAY",
+    "MONDAY",
+    "TUESDAY",
+    "WEDNESDAY",
+    "THURSDAY",
+    "FRIDAY",
+    "SATURDAY",
+  ];
+
+  return (habit.customDays ?? []).includes(weekdayMap[weekdayIndex]);
 }
 
 type DailyHistory = {
@@ -1229,7 +409,7 @@ export default function HabitDetailsPage() {
             </h1>
 
             <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-              <span>{formatFrequency(habit.frequency)}</span>
+              <span>{formatSchedule(habit)}</span>
               {habit.goal && (
                 <>
                   <span>·</span>
@@ -1251,6 +431,51 @@ export default function HabitDetailsPage() {
             {habit.description}
           </p>
         )}
+      </section>
+
+      {/* Habit schedule */}
+      <section className="habitbot-card p-4 sm:p-5">
+        <div className="flex items-center gap-2">
+          <CalendarDays className="h-5 w-5 text-[#7c865b]" />
+          <h2 className="text-base font-semibold text-foreground">
+            Habit schedule
+          </h2>
+        </div>
+
+        <p className="mt-2 text-sm font-medium text-foreground">
+          {formatSchedule(habit)}
+        </p>
+
+        {habit.frequency === "WEEKLY" && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            Complete this habit on any {habit.weeklyTarget} days of the week.
+          </p>
+        )}
+
+        {habit.frequency === "CUSTOM" && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {WEEKDAYS.map((day) => {
+              const selected = (habit.customDays ?? []).includes(day.value);
+
+              return (
+                <span
+                  key={day.value}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-medium ${selected
+                    ? "bg-[#7c865b]/10 text-[#68734b]"
+                    : "bg-[#f7f5f0] text-muted-foreground"
+                    }`}
+                >
+                  {day.label}
+                </span>
+              );
+            })}
+          </div>
+        )}
+
+        <p className="mt-3 text-xs text-muted-foreground">
+          Started {formatDate(habit.startDate)}
+          {habit.endDate ? ` · Ends ${formatDate(habit.endDate)}` : ""}
+        </p>
       </section>
 
       {/* Today's progress and activity */}
@@ -1327,6 +552,63 @@ export default function HabitDetailsPage() {
         </div>
       </section>
 
+      {/* Weekly target progress */}
+      {habit.frequency === "WEEKLY" && stats?.weeklyProgress && (
+        <section className="habitbot-card p-4 sm:p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-base font-semibold text-foreground">
+                This week's progress
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Your weekly completion target
+              </p>
+            </div>
+
+            <Target className="h-5 w-5 text-[#7c865b]" />
+          </div>
+
+          <div className="mt-4 flex items-end justify-between gap-3">
+            <p className="text-2xl font-semibold text-foreground">
+              {stats.weeklyProgress.completed}
+              <span className="text-base font-normal text-muted-foreground">
+                {" / "}
+                {stats.weeklyProgress.target} days
+              </span>
+            </p>
+
+            <span className="text-sm font-semibold text-[#7c865b]">
+              {stats.weeklyProgress.achieved
+                ? "Target achieved"
+                : `${stats.weeklyProgress.remaining} remaining`}
+            </span>
+          </div>
+
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#eee9e1]">
+            <div
+              className="h-full rounded-full bg-[#7c865b] transition-all"
+              style={{
+                width: `${stats.weeklyProgress.target > 0
+                  ? Math.min(
+                    (stats.weeklyProgress.completed /
+                      stats.weeklyProgress.target) *
+                    100,
+                    100
+                  )
+                  : 0
+                  }%`,
+              }}
+            />
+          </div>
+
+          <p className="mt-2 text-xs text-muted-foreground">
+            {stats.weeklyProgress.achieved
+              ? "You've reached your weekly target. Keep it up!"
+              : "You can complete this habit on any remaining day this week."}
+          </p>
+        </section>
+      )}
+
       {/* Streak statistics */}
       <section>
         <div className="mb-3">
@@ -1342,8 +624,12 @@ export default function HabitDetailsPage() {
           <StatCard
             label="Current Streak"
             value={stats?.currentStreak ?? 0}
-            suffix="days"
-            description="Consecutive days completed"
+            suffix={habit.frequency === "WEEKLY" ? "weeks" : "days"}
+            description={
+              habit.frequency === "WEEKLY"
+                ? "Consecutive weeks meeting your target"
+                : "Consecutive scheduled days completed"
+            }
             icon={Flame}
             accent={ACCENT}
             loading={statsLoading || statsError}
@@ -1352,7 +638,7 @@ export default function HabitDetailsPage() {
           <StatCard
             label="Longest Streak"
             value={stats?.longestStreak ?? 0}
-            suffix="days"
+            suffix={habit.frequency === "WEEKLY" ? "weeks" : "days"}
             description="Your personal best"
             icon={Trophy}
             accent={OLIVE}
@@ -1423,6 +709,7 @@ export default function HabitDetailsPage() {
               )
             )}
 
+
             {calendarDays.map((day, index) => {
               if (day === null) {
                 return <div key={`empty-${index}`} aria-hidden="true" />;
@@ -1436,60 +723,92 @@ export default function HabitDetailsPage() {
 
               const isToday = dateKey === today;
               const isFuture = dateKey > today;
+              const isWeekly = habit.frequency === "WEEKLY";
+              const isScheduled = isScheduledOnDate(habit, dateKey);
               const dayHistory = historyByDate.get(dateKey);
 
               const isCompleted = isMeasurable
                 ? Boolean(
-                    dayHistory &&
-                      target !== null &&
-                      target > 0 &&
-                      dayHistory.value >= target
-                  )
+                  dayHistory &&
+                  target !== null &&
+                  target > 0 &&
+                  dayHistory.value >= target
+                )
                 : Boolean(dayHistory?.completed);
 
-              const isMissed = !isFuture && !isCompleted;
+              // Weekly habits are flexible: an incomplete day is not a missed day.
+              const isMissed =
+                !isWeekly && !isFuture && isScheduled && !isCompleted;
 
-              const status = isFuture
-                ? "Upcoming"
-                : isCompleted
-                  ? "Completed"
-                  : "Not completed";
+              const status = isCompleted
+                ? "Completed"
+                : !isScheduled
+                  ? "Rest day"
+                  : isToday
+                    ? "Today"
+                    : isFuture
+                      ? "Available"
+                      : isWeekly
+                        ? "Flexible day — no completion recorded"
+                        : "Not completed";
 
               return (
                 <div
                   key={dateKey}
                   title={`${formatDate(dateKey)} — ${status}`}
                   aria-label={`${formatDate(dateKey)} — ${status}`}
-                  className={`flex h-8 w-full items-center justify-center rounded-md border text-xs font-medium transition sm:h-9 ${
-                    isCompleted
-                      ? "border-[#7c865b] bg-[#7c865b] text-white"
-                      : isToday
-                        ? "border-[#f4773c] bg-[#f4773c]/10 font-bold text-[#f4773c] ring-1 ring-[#f4773c]/30"
-                        : isMissed
-                          ? "border-[#ebe5dc] bg-[#f7f5f0] text-muted-foreground"
-                          : "border-[#ebe5dc] text-muted-foreground"
-                  }`}
+                  className={`flex h-8 w-full items-center justify-center rounded-md border text-xs font-medium transition sm:h-9 ${isCompleted
+                    ? "border-[#7c865b] bg-[#7c865b] text-white"
+                    : isToday
+                      ? "border-[#f4773c] bg-[#f4773c]/10 font-bold text-[#f4773c] ring-1 ring-[#f4773c]/30"
+                      : !isScheduled
+                        ? "border-dashed border-[#ebe5dc] text-muted-foreground/50"
+                        : isWeekly
+                          ? "border-[#ebe5dc] bg-white text-muted-foreground"
+                          : isMissed
+                            ? "border-[#ebe5dc] bg-[#f7f5f0] text-muted-foreground"
+                            : "border-[#ebe5dc] text-muted-foreground"
+                    }`}
                 >
                   {day}
                 </div>
               );
             })}
+
           </div>
+
 
           <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-sm bg-[#7c865b]" />
               Completed
             </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-sm border border-[#ebe5dc] bg-[#f7f5f0]" />
-              Not completed
-            </span>
+
             <span className="flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-sm border-2 border-[#f4773c]" />
               Today
             </span>
+
+            {habit.frequency === "WEEKLY" ? (
+              <span className="flex items-center gap-1.5">
+                <span className="h-2.5 w-2.5 rounded-sm border border-[#ebe5dc] bg-white" />
+                Flexible day
+              </span>
+            ) : (
+              <>
+                <span className="flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-sm border border-[#ebe5dc] bg-[#f7f5f0]" />
+                  Not completed
+                </span>
+
+                <span className="flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-sm border border-dashed border-[#ebe5dc]" />
+                  Rest day
+                </span>
+              </>
+            )}
           </div>
+
         </div>
 
         {/* Habit history */}
@@ -1540,9 +859,9 @@ export default function HabitDetailsPage() {
                   const dayProgress =
                     isMeasurable && target !== null && target > 0
                       ? Math.min(
-                          Math.round((day.value / target) * 100),
-                          100
-                        )
+                        Math.round((day.value / target) * 100),
+                        100
+                      )
                       : day.completed
                         ? 100
                         : 0;
@@ -1554,11 +873,10 @@ export default function HabitDetailsPage() {
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex min-w-0 items-center gap-2.5">
                           <div
-                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
-                              dayCompleted
-                                ? "bg-[#7c865b]/10 text-[#7c865b]"
-                                : "bg-[#f4773c]/10 text-[#f4773c]"
-                            }`}
+                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${dayCompleted
+                              ? "bg-[#7c865b]/10 text-[#7c865b]"
+                              : "bg-[#f4773c]/10 text-[#f4773c]"
+                              }`}
                           >
                             {dayCompleted ? (
                               <Check className="h-4 w-4" />

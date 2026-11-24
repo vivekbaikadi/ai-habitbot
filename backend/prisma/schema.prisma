@@ -48,6 +48,16 @@ enum HabitFrequency {
   CUSTOM
 }
 
+enum HabitWeekday {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
 // ─────────────────────────────────────────────
 // FOOD ENUMS
 // ─────────────────────────────────────────────
@@ -167,7 +177,9 @@ model Habit {
   targetUnit  String?
 
   // Scheduling
-  frequency HabitFrequency @default(DAILY)
+  frequency    HabitFrequency @default(DAILY)
+  weeklyTarget Int?
+  customDays   HabitWeekday[] @default([])
 
   startDate DateTime
   endDate   DateTime?

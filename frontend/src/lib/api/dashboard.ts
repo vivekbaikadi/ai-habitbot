@@ -1,13 +1,31 @@
+
 import apiClient from "./client";
+
+import type {
+  HabitFrequency,
+  HabitWeekday
+} from "./habits";
+
+import type {
+  WeeklyProgress
+} from "./completions";
 
 export interface DashboardHabit {
   id: string;
   name: string;
   description: string | null;
   goalId: string | null;
+
   targetValue: number | string | null;
   targetUnit: string | null;
-  frequency: string;
+
+  frequency: HabitFrequency;
+  weeklyTarget: number | null;
+  customDays: HabitWeekday[];
+
+  isScheduledToday: boolean;
+
+  weeklyProgress: WeeklyProgress | null;
 
   today: {
     completed: boolean;

@@ -1,5 +1,5 @@
 import { prisma } from "../../database/prisma.js";
-
+import { DateTime } from "luxon";
 import {
   AppError
 } from "../../common/errors/app.error.js";
@@ -62,16 +62,29 @@ async function getUserTimezone(
   );
 }
 
+function getWeekday(date: string): string {
+  const weekdays = [
+    "MONDAY",
+    "TUESDAY",
+    "WEDNESDAY",
+    "THURSDAY",
+    "FRIDAY",
+    "SATURDAY",
+    "SUNDAY"
+  ];
+
+  const day = new Date(`${date}T00:00:00Z`).getUTCDay();
+
+  return weekdays[(day + 6) % 7]!;
+}
+
+
 export async function createCompletion(
   userId: string,
   habitId: string,
   input: CreateCompletionInput
 ) {
-  const habit =
-    await getOwnedHabit(
-      userId,
-      habitId
-    );
+  const habit = await getOwnedHabit(userId, habitId);
 
   if (!habit.isActive) {
     throw new AppError(
@@ -81,10 +94,24 @@ export async function createCompletion(
     );
   }
 
-  if (
-    input.completedAt <
-    habit.startDate
-  ) {
+  const timezone = await getUserTimezone(userId);
+
+  // Determine the local date of the requested completion.
+  const completionDate = getUserLocalDate(
+    input.completedAt,
+    timezone
+  );
+
+  const habitStartDate = getUserLocalDate(
+    habit.startDate,
+    timezone
+  );
+
+  const habitEndDate = habit.endDate
+    ? getUserLocalDate(habit.endDate, timezone)
+    : null;
+
+  if (completionDate < habitStartDate) {
     throw new AppError(
       "Completion cannot be before habit start date",
       400,
@@ -92,15 +119,62 @@ export async function createCompletion(
     );
   }
 
-  if (
-    habit.endDate &&
-    input.completedAt >
-    habit.endDate
-  ) {
+  if (habitEndDate && completionDate > habitEndDate) {
     throw new AppError(
       "Completion cannot be after habit end date",
       400,
       "INVALID_COMPLETION_DATE"
+    );
+  }
+
+  // Validate custom weekday scheduling.
+  if (habit.frequency === "CUSTOM") {
+    if (habit.customDays.length === 0) {
+      throw new AppError(
+        "This habit has no configured schedule. Please edit its schedule first.",
+        400,
+        "HABIT_SCHEDULE_NOT_CONFIGURED"
+      );
+    }
+
+    const weekday = getWeekday(completionDate);
+
+    if (!habit.customDays.includes(weekday as typeof habit.customDays[number])) {
+      throw new AppError(
+        `This habit is not scheduled for ${weekday}`,
+        400,
+        "HABIT_NOT_SCHEDULED"
+      );
+    }
+  }
+
+  // Determine the correct local day for this completion,
+  // including backdated entries.
+  const {
+    startOfDay,
+    endOfDay
+  } = getUserDayRange(timezone, input.completedAt);
+
+  const dayCompletions =
+    await prisma.habitCompletion.findMany({
+      where: {
+        habitId,
+        completedAt: {
+          gte: startOfDay,
+          lte: endOfDay
+        }
+      },
+      select: {
+        value: true
+      }
+    });
+
+  // Prevent duplicate binary completions on the same day.
+  if (habit.targetValue === null && dayCompletions.length > 0) {
+    throw new AppError(
+      "This habit has already been completed for this day",
+      400,
+      "HABIT_ALREADY_COMPLETED"
     );
   }
 
@@ -109,49 +183,18 @@ export async function createCompletion(
     input.value !== undefined &&
     habit.targetValue !== null
   ) {
-    const timezone =
-      await getUserTimezone(userId);
+    const currentTotal = dayCompletions.reduce(
+      (sum, completion) =>
+        sum + Number(completion.value ?? 0),
+      0
+    );
 
-    const {
-      startOfDay,
-      endOfDay
-    } = getUserDayRange(timezone);
-
-    const todayCompletions =
-      await prisma.habitCompletion.findMany({
-        where: {
-          habitId,
-
-          completedAt: {
-            gte: startOfDay,
-            lte: endOfDay
-          }
-        },
-
-        select: {
-          value: true
-        }
-      });
-
-    const currentTotal =
-      todayCompletions.reduce(
-        (sum, completion) =>
-          sum +
-          Number(
-            completion.value ?? 0
-          ),
-        0
-      );
-
-    const target =
-      Number(habit.targetValue);
-
-    const remaining =
-      target - currentTotal;
+    const target = Number(habit.targetValue);
+    const remaining = target - currentTotal;
 
     if (remaining <= 0) {
       throw new AppError(
-        "Habit target has already been reached for today",
+        "Habit target has already been reached for this day",
         400,
         "HABIT_TARGET_REACHED"
       );
@@ -169,9 +212,7 @@ export async function createCompletion(
   return prisma.habitCompletion.create({
     data: {
       habitId,
-
-      completedAt:
-        input.completedAt,
+      completedAt: input.completedAt,
 
       ...(input.value !== undefined && {
         value: input.value
@@ -183,6 +224,7 @@ export async function createCompletion(
     }
   });
 }
+
 
 export async function getCompletions(
   userId: string,
@@ -220,241 +262,343 @@ export async function getCompletions(
   });
 }
 
+
 export async function getHabitStats(
   userId: string,
   habitId: string
 ) {
-  await getOwnedHabit(
-    userId,
-    habitId
-  );
+  const habit = await getOwnedHabit(userId, habitId);
 
-  const timezone =
-    await getUserTimezone(
-      userId
-    );
+  const timezone = await getUserTimezone(userId);
 
   const completions =
     await prisma.habitCompletion.findMany({
       where: {
         habitId
       },
-
       orderBy: {
         completedAt: "asc"
       },
-
       select: {
         completedAt: true
       }
     });
 
-  const uniqueDays =
-    new Set(
-      completions.map(
-        (completion) =>
-          getUserLocalDate(
-            completion.completedAt,
-            timezone
-          )
-      )
-    );
+  const uniqueDays = new Set(
+    completions.map((completion) =>
+      getUserLocalDate(completion.completedAt, timezone)
+    )
+  );
 
-  const sortedDays =
-    Array.from(uniqueDays).sort();
+  const totalCompletions = completions.length;
 
-  const totalCompletions =
-    completions.length;
+  const { userNow } = getUserDayRange(timezone);
 
-  if (sortedDays.length === 0) {
-    return {
-      currentStreak: 0,
-      longestStreak: 0,
-      totalCompletions,
-      completionRate: 0,
-      lastCompletedAt: null
-    };
-  }
+  const today = userNow.toISODate()!;
 
-  /*
-   * Calculate longest streak.
-   */
-  let longestStreak = 1;
-  let runningStreak = 1;
-
-  for (
-    let i = 1;
-    i < sortedDays.length;
-    i++
-  ) {
-    const previousDay = sortedDays[i - 1];
-    const currentDay = sortedDays[i];
-
-    if (!previousDay || !currentDay) {
-      continue;
-    }
-
-    const difference =
-      getUserDayDifference(
-        previousDay,
-        currentDay
-      );
-
-    if (difference === 1) {
-      runningStreak++;
-
-      longestStreak =
-        Math.max(
-          longestStreak,
-          runningStreak
-        );
-    } else {
-      runningStreak = 1;
-    }
-  }
-
-  /*
-   * Calculate current streak using
-   * the user's local calendar date.
-   */
-  const {
-    userNow
-  } = getUserDayRange(
+  const startDate = getUserLocalDate(
+    habit.startDate,
     timezone
   );
 
-  const todayString =
-    userNow.toISODate()!;
+  const endDate = habit.endDate
+    ? getUserLocalDate(habit.endDate, timezone)
+    : today;
 
-  const yesterdayString =
-    userNow
-      .minus({
-        days: 1
-      })
-      .toISODate()!;
+  const effectiveEndDate =
+    endDate < today ? endDate : today;
 
-  let currentStreak = 0;
+  const emptyResult = {
+    currentStreak: 0,
+    longestStreak: 0,
+    totalCompletions,
+    completionRate: 0,
+    lastCompletedAt:
+      completions.at(-1)?.completedAt ?? null,
+    weeklyProgress: null
+  };
+
+  if (startDate > effectiveEndDate) {
+    return emptyResult;
+  }
+
+  /*
+   * DAILY and CUSTOM scheduling
+   */
 
   if (
-    uniqueDays.has(
-      todayString
-    )
+    habit.frequency === "DAILY" ||
+    habit.frequency === "CUSTOM"
   ) {
-    currentStreak = 1;
+    const scheduledDates: string[] = [];
 
-    let cursor =
-      userNow.minus({
-        days: 1
-      });
+    let cursor = DateTime.fromISO(startDate, {
+      zone: timezone
+    });
 
-    while (true) {
-      const dateString =
-        cursor.toISODate()!;
+    const finalDate = DateTime.fromISO(
+      effectiveEndDate,
+      { zone: timezone }
+    );
 
-      if (
-        !uniqueDays.has(
-          dateString
-        )
-      ) {
-        break;
+    while (cursor <= finalDate) {
+      const dateString = cursor.toISODate()!;
+
+      const isScheduled =
+        habit.frequency === "DAILY" ||
+        habit.customDays.includes(
+          cursor.toFormat("cccc").toUpperCase() as
+            typeof habit.customDays[number]
+        );
+
+      if (isScheduled) {
+        scheduledDates.push(dateString);
       }
 
-      currentStreak++;
-
-      cursor =
-        cursor.minus({
-          days: 1
-        });
+      cursor = cursor.plus({ days: 1 });
     }
-  } else if (
-    uniqueDays.has(
-      yesterdayString
-    )
-  ) {
+
+    const completedScheduledDates =
+      scheduledDates.filter((date) =>
+        uniqueDays.has(date)
+      );
+
     /*
-     * The most recent completion was
-     * yesterday, so the current streak
-     * is still considered active.
+     * Longest streak:
+     * Consecutive scheduled opportunities
+     * that were completed.
      */
-    currentStreak = 1;
+    let longestStreak = 0;
+    let runningStreak = 0;
 
-    let cursor =
-      userNow.minus({
-        days: 2
-      });
+    for (const date of scheduledDates) {
+      if (uniqueDays.has(date)) {
+        runningStreak++;
 
-    while (true) {
-      const dateString =
-        cursor.toISODate()!;
+        longestStreak = Math.max(
+          longestStreak,
+          runningStreak
+        );
+      } else {
+        runningStreak = 0;
+      }
+    }
 
-      if (
-        !uniqueDays.has(
-          dateString
-        )
-      ) {
+    /*
+     * Current streak:
+     * If today is scheduled but has not yet
+     * been completed, don't break the streak
+     * until the day is over.
+     */
+    const currentScheduledDates = [
+      ...scheduledDates
+    ];
+
+    if (
+      currentScheduledDates.at(-1) === today &&
+      !uniqueDays.has(today)
+    ) {
+      currentScheduledDates.pop();
+    }
+
+    let currentStreak = 0;
+
+    for (
+      let i = currentScheduledDates.length - 1;
+      i >= 0;
+      i--
+    ) {
+      const date = currentScheduledDates[i]!;
+
+      if (!uniqueDays.has(date)) {
         break;
       }
 
       currentStreak++;
+    }
 
-      cursor =
-        cursor.minus({
-          days: 1
-        });
+    const completionRate =
+      scheduledDates.length > 0
+        ? Number(
+            (
+              (completedScheduledDates.length /
+                scheduledDates.length) *
+              100
+            ).toFixed(2)
+          )
+        : 0;
+
+    return {
+      currentStreak,
+      longestStreak,
+      totalCompletions,
+      completionRate,
+      lastCompletedAt:
+        completions.at(-1)?.completedAt ?? null,
+      weeklyProgress: null
+    };
+  }
+
+  /*
+   * WEEKLY scheduling
+   */
+
+  if (
+    habit.frequency === "WEEKLY" &&
+    (!habit.weeklyTarget || habit.weeklyTarget < 1)
+  ) {
+    return emptyResult;
+  }
+
+  const weeklyTarget = habit.weeklyTarget!;
+
+  const firstWeek = DateTime.fromISO(startDate, {
+    zone: timezone
+  }).startOf("week");
+
+  const currentWeek = DateTime.fromISO(today, {
+    zone: timezone
+  }).startOf("week");
+
+  const weeklyRecords: {
+    weekStart: string;
+    completionCount: number;
+    achieved: boolean;
+  }[] = [];
+
+  let weekCursor = firstWeek;
+
+  while (weekCursor <= currentWeek) {
+    const weekStart = weekCursor.toISODate()!;
+
+    const weekEnd = weekCursor
+      .endOf("week")
+      .toISODate()!;
+
+    const completionCount = Array.from(uniqueDays)
+      .filter(
+        (date) =>
+          date >= weekStart &&
+          date <= weekEnd &&
+          date >= startDate &&
+          date <= effectiveEndDate
+      ).length;
+
+    weeklyRecords.push({
+      weekStart,
+      completionCount,
+      achieved: completionCount >= weeklyTarget
+    });
+
+    weekCursor = weekCursor.plus({ weeks: 1 });
+  }
+
+  /*
+   * Longest weekly streak:
+   * Consecutive weeks meeting the target.
+   */
+  let longestStreak = 0;
+  let runningStreak = 0;
+
+  for (const week of weeklyRecords) {
+    if (week.achieved) {
+      runningStreak++;
+
+      longestStreak = Math.max(
+        longestStreak,
+        runningStreak
+      );
+    } else {
+      runningStreak = 0;
     }
   }
 
   /*
-   * Calculate completion rate based
-   * on unique calendar days.
+   * Current weekly streak:
+   * The current week qualifies immediately
+   * when its target is reached.
+   *
+   * Until then, an unfinished current week
+   * does not break the previous streak.
    */
-  const firstDay =
-    sortedDays[0];
+  let currentStreak = 0;
 
-  const lastDay =
-    sortedDays[
-    sortedDays.length - 1
-    ];
+  const currentWeekRecord =
+    weeklyRecords.at(-1);
 
-  if (!firstDay || !lastDay) {
-    return {
-      currentStreak: 0,
-      longestStreak: 0,
-      totalCompletions,
-      completionRate: 0,
-      lastCompletedAt: null
-    };
+  let streakIndex =
+    weeklyRecords.length - 1;
+
+  if (
+    currentWeekRecord &&
+    !currentWeekRecord.achieved
+  ) {
+    streakIndex--;
   }
 
-  const totalDays =
-    getUserDayDifference(
-      firstDay,
-      lastDay
-    ) + 1;
+  for (
+    let i = streakIndex;
+    i >= 0;
+    i--
+  ) {
+    const week = weeklyRecords[i]!;
+
+    if (!week.achieved) {
+      break;
+    }
+
+    currentStreak++;
+  }
+
+  /*
+   * Weekly completion rate:
+   * Completed weekly target slots divided
+   * by total weekly target slots.
+   */
+  const totalWeeklyTargets =
+    weeklyRecords.length * weeklyTarget;
+
+  const completedWeeklyTargets =
+    weeklyRecords.reduce(
+      (sum, week) =>
+        sum + Math.min(
+          week.completionCount,
+          weeklyTarget
+        ),
+      0
+    );
 
   const completionRate =
-    totalDays > 0
+    totalWeeklyTargets > 0
       ? Number(
-        (
-          (sortedDays.length /
-            totalDays) *
-          100
-        ).toFixed(2)
-      )
+          (
+            (completedWeeklyTargets /
+              totalWeeklyTargets) *
+            100
+          ).toFixed(2)
+        )
       : 0;
+
+  const currentWeekCompleted =
+    currentWeekRecord?.completionCount ?? 0;
 
   return {
     currentStreak,
-
     longestStreak,
-
     totalCompletions,
-
     completionRate,
-
     lastCompletedAt:
-      completions[
-        completions.length - 1
-      ]?.completedAt ?? null
+      completions.at(-1)?.completedAt ?? null,
+
+    weeklyProgress: {
+      target: weeklyTarget,
+      completed: currentWeekCompleted,
+      remaining: Math.max(
+        0,
+        weeklyTarget - currentWeekCompleted
+      ),
+      achieved:
+        currentWeekCompleted >= weeklyTarget
+    }
   };
 }

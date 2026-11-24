@@ -1,3 +1,4 @@
+
 import apiClient from "./client";
 
 export interface CreateCompletionInput {
@@ -13,6 +14,22 @@ export interface Completion {
   value: number | null;
   notes: string | null;
   createdAt: string;
+}
+
+export interface WeeklyProgress {
+  target: number;
+  completed: number;
+  remaining: number;
+  achieved: boolean;
+}
+
+export interface HabitStats {
+  currentStreak: number;
+  longestStreak: number;
+  totalCompletions: number;
+  completionRate: number;
+  lastCompletedAt: string | null;
+  weeklyProgress: WeeklyProgress | null;
 }
 
 export async function createHabitCompletion(
@@ -45,20 +62,11 @@ export async function getHabitCompletions(
   }>(`/habits/${habitId}/completions`, {
     params: {
       ...(from && { from }),
-      ...(to && { to }),
-    },
+      ...(to && { to })
+    }
   });
 
   return response.data.data.completions;
-}
-
-
-export interface HabitStats {
-  currentStreak: number;
-  longestStreak: number;
-  totalCompletions: number;
-  completionRate: number;
-  lastCompletedAt: string | null;
 }
 
 export async function getHabitStats(

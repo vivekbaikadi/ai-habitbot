@@ -1,3 +1,4 @@
+
 import { prisma } from "../../database/prisma.js";
 import { AppError } from "../../common/errors/app.error.js";
 
@@ -28,6 +29,16 @@ export async function createHabit(
     }
   }
 
+  const weeklyTarget =
+    input.frequency === "WEEKLY"
+      ? input.weeklyTarget!
+      : null;
+
+  const customDays =
+    input.frequency === "CUSTOM"
+      ? input.customDays ?? []
+      : [];
+
   return prisma.habit.create({
     data: {
       userId,
@@ -50,6 +61,9 @@ export async function createHabit(
       }),
 
       frequency: input.frequency,
+      weeklyTarget,
+      customDays,
+
       startDate: input.startDate,
 
       ...(input.endDate !== undefined && {
@@ -103,7 +117,10 @@ export async function updateHabit(
   habitId: string,
   input: UpdateHabitInput
 ) {
-  await getHabitById(userId, habitId);
+  const existingHabit = await getHabitById(
+    userId,
+    habitId
+  );
 
   if (input.goalId !== undefined && input.goalId !== null) {
     const goal = await prisma.userGoal.findFirst({
@@ -120,6 +137,74 @@ export async function updateHabit(
         404,
         "GOAL_NOT_FOUND"
       );
+    }
+  }
+
+  const scheduleUpdated =
+    input.frequency !== undefined ||
+    input.weeklyTarget !== undefined ||
+    input.customDays !== undefined;
+
+  const nextFrequency =
+    input.frequency ?? existingHabit.frequency;
+
+  let scheduleData = {};
+
+  if (scheduleUpdated) {
+    if (nextFrequency === "DAILY") {
+      scheduleData = {
+        frequency: "DAILY" as const,
+        weeklyTarget: null,
+        customDays: []
+      };
+    }
+
+    if (nextFrequency === "WEEKLY") {
+      const weeklyTarget =
+        input.weeklyTarget ??
+        (
+          existingHabit.frequency === "WEEKLY"
+            ? existingHabit.weeklyTarget
+            : null
+        );
+
+      if (weeklyTarget === null) {
+        throw new AppError(
+          "Weekly target is required for weekly habits",
+          400,
+          "WEEKLY_TARGET_REQUIRED"
+        );
+      }
+
+      scheduleData = {
+        frequency: "WEEKLY" as const,
+        weeklyTarget,
+        customDays: []
+      };
+    }
+
+    if (nextFrequency === "CUSTOM") {
+      const customDays =
+        input.customDays ??
+        (
+          existingHabit.frequency === "CUSTOM"
+            ? existingHabit.customDays
+            : []
+        );
+
+      if (customDays.length === 0) {
+        throw new AppError(
+          "Select at least one day for custom habits",
+          400,
+          "CUSTOM_DAYS_REQUIRED"
+        );
+      }
+
+      scheduleData = {
+        frequency: "CUSTOM" as const,
+        weeklyTarget: null,
+        customDays
+      };
     }
   }
 
@@ -148,9 +233,7 @@ export async function updateHabit(
         targetUnit: input.targetUnit
       }),
 
-      ...(input.frequency !== undefined && {
-        frequency: input.frequency
-      }),
+      ...scheduleData,
 
       ...(input.startDate !== undefined && {
         startDate: input.startDate

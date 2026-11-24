@@ -1,4 +1,19 @@
+
 import apiClient from "./client";
+
+export type HabitFrequency =
+  | "DAILY"
+  | "WEEKLY"
+  | "CUSTOM";
+
+export type HabitWeekday =
+  | "MONDAY"
+  | "TUESDAY"
+  | "WEDNESDAY"
+  | "THURSDAY"
+  | "FRIDAY"
+  | "SATURDAY"
+  | "SUNDAY";
 
 export interface HabitGoal {
   id: string;
@@ -20,7 +35,9 @@ export interface Habit {
   targetValue: number | string | null;
   targetUnit: string | null;
 
-  frequency: "DAILY" | "WEEKLY" | "CUSTOM";
+  frequency: HabitFrequency;
+  weeklyTarget: number | null;
+  customDays: HabitWeekday[];
 
   startDate: string;
   endDate: string | null;
@@ -37,7 +54,11 @@ export interface CreateHabitInput {
   goalId?: string;
   targetValue?: number;
   targetUnit?: string;
-  frequency: "DAILY" | "WEEKLY" | "CUSTOM";
+
+  frequency: HabitFrequency;
+  weeklyTarget?: number;
+  customDays?: HabitWeekday[];
+
   startDate: string;
   endDate?: string;
 }
@@ -48,7 +69,11 @@ export interface UpdateHabitInput {
   goalId?: string | null;
   targetValue?: number | null;
   targetUnit?: string | null;
-  frequency?: "DAILY" | "WEEKLY" | "CUSTOM";
+
+  frequency?: HabitFrequency;
+  weeklyTarget?: number;
+  customDays?: HabitWeekday[];
+
   startDate?: string;
   endDate?: string | null;
   isActive?: boolean;

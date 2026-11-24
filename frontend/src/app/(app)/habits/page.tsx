@@ -16,6 +16,7 @@ import {
     getHabits,
     type CreateHabitInput,
     type Habit,
+    type HabitWeekday,
 } from "@/lib/api/habits";
 
 import {
@@ -49,12 +50,104 @@ function formatFrequency(
     }
 }
 
+function formatSchedule(habit: Habit): string {
+    switch (habit.frequency) {
+        case "DAILY":
+            return "Every day";
+
+        case "WEEKLY":
+            return `${habit.weeklyTarget ?? 0} times per week`;
+
+        case "CUSTOM":
+            return (habit.customDays ?? [])
+                .map((day) =>
+                    WEEKDAYS.find((weekday) => weekday.value === day)?.label
+                )
+                .filter(Boolean)
+                .join(", ") || "No days selected";
+
+        default:
+            return formatFrequency(habit.frequency);
+    }
+}
+
 function formatDate(date: string): string {
     return new Intl.DateTimeFormat("en-US", {
         month: "short",
         day: "numeric",
         year: "numeric",
     }).format(new Date(date));
+}
+
+const WEEKDAYS: {
+    value: HabitWeekday;
+    label: string;
+}[] = [
+        { value: "MONDAY", label: "Mon" },
+        { value: "TUESDAY", label: "Tue" },
+        { value: "WEDNESDAY", label: "Wed" },
+        { value: "THURSDAY", label: "Thu" },
+        { value: "FRIDAY", label: "Fri" },
+        { value: "SATURDAY", label: "Sat" },
+        { value: "SUNDAY", label: "Sun" },
+    ];
+
+function WeekdaySelector({
+    selectedDays,
+    onChange,
+}: {
+    selectedDays: HabitWeekday[];
+    onChange: (days: HabitWeekday[]) => void;
+}) {
+    function toggleDay(day: HabitWeekday) {
+        const updatedDays = selectedDays.includes(day)
+            ? selectedDays.filter((selected) => selected !== day)
+            : [
+                ...selectedDays,
+                day,
+            ];
+
+        onChange(
+            WEEKDAYS
+                .filter((weekday) =>
+                    updatedDays.includes(weekday.value)
+                )
+                .map((weekday) => weekday.value)
+        );
+    }
+
+    return (
+        <div>
+            <label className="mb-2 block text-sm font-medium text-foreground">
+                Choose your habit days
+            </label>
+
+            <div className="flex flex-wrap gap-2">
+                {WEEKDAYS.map((day) => {
+                    const selected = selectedDays.includes(day.value);
+
+                    return (
+                        <button
+                            key={day.value}
+                            type="button"
+                            onClick={() => toggleDay(day.value)}
+                            aria-pressed={selected}
+                            className={`rounded-xl border px-4 py-2.5 text-sm font-medium transition ${selected
+                                ? "border-[#7c865b] bg-[#7c865b]/10 text-[#68734b]"
+                                : "border-[#e6dfd4] bg-white text-muted-foreground hover:bg-[#f7f5f0]"
+                                }`}
+                        >
+                            {day.label}
+                        </button>
+                    );
+                })}
+            </div>
+
+            <p className="mt-2 text-xs text-muted-foreground">
+                Select at least one day for this habit.
+            </p>
+        </div>
+    );
 }
 
 function getProgress(
@@ -85,7 +178,7 @@ function getProgress(
 
 function HabitCard({
     habit,
-    today,
+    dashboardHabit,
     onEdit,
     onDeactivate,
     onReactivate,
@@ -95,7 +188,7 @@ function HabitCard({
     isReactivatePending,
 }: {
     habit: Habit;
-    today?: DashboardHabit["today"];
+    dashboardHabit?: DashboardHabit;
     onEdit: (habit: Habit) => void;
     onDeactivate: (habit: Habit) => void;
     onReactivate: (habit: Habit) => void;
@@ -113,16 +206,19 @@ function HabitCard({
     const isDeactivated =
         !habit.isActive;
 
-    const progress = getProgress(
-        habit,
-        today
-    );
+    const today = dashboardHabit?.today;
 
-    const currentValue =
-        today?.value ?? 0;
+    const isScheduledToday =
+        dashboardHabit?.isScheduledToday ?? false;
 
-    const completed =
-        today?.completed ?? false;
+    const weeklyProgress =
+        dashboardHabit?.weeklyProgress ?? null;
+
+    const progress = getProgress(habit, today);
+
+    const currentValue = today?.value ?? 0;
+
+    const completed = today?.completed ?? false;
 
     return (
         <div
@@ -160,9 +256,7 @@ function HabitCard({
 
                         <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                             <span>
-                                {formatFrequency(
-                                    habit.frequency
-                                )}
+                                {formatSchedule(habit)}
                             </span>
 
                             {habit.goal && (
@@ -364,8 +458,59 @@ function HabitCard({
                     )}
                 </div>
 
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <span
+                        className={`rounded-full px-3 py-1 text-xs font-medium ${isScheduledToday
+                            ? "bg-[#7c865b]/10 text-[#68734b]"
+                            : "bg-[#eee9e1] text-muted-foreground"
+                            }`}
+                    >
+                        {isScheduledToday
+                            ? "Scheduled today"
+                            : "Not scheduled today"}
+                    </span>
+                </div>
+
+                {habit.frequency === "WEEKLY" && weeklyProgress && (
+                    <div className="mt-4 rounded-xl bg-[#f7f5f0] p-4">
+                        <div className="flex items-center justify-between gap-3">
+                            <span className="text-sm font-medium text-foreground">
+                                Weekly progress
+                            </span>
+
+                            <span className="text-sm font-semibold text-[#7c865b]">
+                                {weeklyProgress.completed}/{weeklyProgress.target} days
+                            </span>
+                        </div>
+
+                        <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#eee9e1]">
+                            <div
+                                className="h-full rounded-full bg-[#7c865b] transition-all"
+                                style={{
+                                    width: `${weeklyProgress.target > 0
+                                        ? Math.min(
+                                            (weeklyProgress.completed /
+                                                weeklyProgress.target) *
+                                            100,
+                                            100
+                                        )
+                                        : 0
+                                        }%`,
+                                }}
+                            />
+                        </div>
+
+                        <p className="mt-2 text-xs text-muted-foreground">
+                            {weeklyProgress.achieved
+                                ? "Weekly target achieved!"
+                                : `${weeklyProgress.remaining} more ${weeklyProgress.remaining === 1 ? "day" : "days"
+                                } to reach your weekly target`}
+                        </p>
+                    </div>
+                )}
+
                 {/* Measurable habit */}
-                {isMeasurable && (
+                {isMeasurable && isScheduledToday && (
                     <div className="mt-4">
                         <div className="flex items-center justify-between gap-4">
                             <span className="text-sm font-medium text-foreground">
@@ -457,7 +602,7 @@ function HabitCard({
                 )}
 
                 {/* Binary habit */}
-                {!isMeasurable && (
+                {!isMeasurable && isScheduledToday && (
                     <div
                         className={`
               mt-4
@@ -521,6 +666,18 @@ function HabitCard({
                     </div>
                 )}
 
+                {!isScheduledToday && (
+                    <div className="mt-4 rounded-xl bg-[#f7f5f0] p-4">
+                        <p className="text-sm font-medium text-foreground">
+                            Rest day!
+                        </p>
+                        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                            This habit isn't scheduled for today. You can continue on
+                            your next scheduled day.
+                        </p>
+                    </div>
+                )}
+
                 <div className="mt-4 border-t border-[#ebe5dc] pt-4">
                     <Link
                         href={`/habits/${habit.id}`}
@@ -564,13 +721,13 @@ export default function HabitsPage() {
     const todayHabits =
         dashboard?.habits ?? [];
 
-    const todayByHabitId =
-        new Map(
-            todayHabits.map((habit) => [
-                habit.id,
-                habit.today,
-            ])
-        );
+    const dashboardHabitById = new Map(
+        todayHabits.map((habit) => [habit.id, habit])
+    );
+
+    const todayByHabitId = new Map(
+        todayHabits.map((habit) => [habit.id, habit.today])
+    );
 
     const isLoading =
         habitsLoading || dashboardLoading;
@@ -615,6 +772,8 @@ export default function HabitsPage() {
             targetValue: undefined,
             targetUnit: "",
             frequency: "DAILY",
+            weeklyTarget: undefined,
+            customDays: [],
             startDate: new Date()
                 .toISOString()
                 .slice(0, 10),
@@ -679,6 +838,8 @@ export default function HabitsPage() {
                     : null,
             targetUnit: habit.targetUnit,
             frequency: habit.frequency,
+            weeklyTarget: habit.weeklyTarget ?? undefined,
+            customDays: habit.customDays ?? [],
             startDate: habit.startDate.slice(0, 10),
             endDate: habit.endDate
                 ? habit.endDate.slice(0, 10)
@@ -862,6 +1023,8 @@ export default function HabitsPage() {
                 targetValue: undefined,
                 targetUnit: "",
                 frequency: "DAILY",
+                weeklyTarget: undefined,
+                customDays: [],
                 startDate: new Date()
                     .toISOString()
                     .slice(0, 10),
@@ -1090,9 +1253,7 @@ export default function HabitsPage() {
                             <HabitCard
                                 key={habit.id}
                                 habit={habit}
-                                today={todayByHabitId.get(
-                                    habit.id
-                                )}
+                                dashboardHabit={dashboardHabitById.get(habit.id)}
                                 onEdit={openEditForm}
                                 onDeactivate={(habit) =>
                                     setDeactivateHabit(habit)
@@ -1231,14 +1392,27 @@ export default function HabitsPage() {
 
                                 <select
                                     value={editForm.frequency}
-                                    onChange={(event) =>
+                                    onChange={(event) => {
+                                        const frequency =
+                                            event.target.value as Habit["frequency"];
+
                                         setEditForm((current) => ({
                                             ...current,
-                                            frequency:
-                                                event.target
-                                                    .value as UpdateHabitInput["frequency"],
-                                        }))
-                                    }
+                                            frequency,
+                                            weeklyTarget:
+                                                frequency === "WEEKLY"
+                                                    ? current.frequency === "WEEKLY"
+                                                        ? current.weeklyTarget
+                                                        : undefined
+                                                    : undefined,
+                                            customDays:
+                                                frequency === "CUSTOM"
+                                                    ? current.frequency === "CUSTOM"
+                                                        ? current.customDays ?? []
+                                                        : []
+                                                    : [],
+                                        }));
+                                    }}
                                     className="w-full rounded-xl border border-[#e6dfd4] bg-white px-4 py-3 text-sm outline-none transition focus:border-[#f4773c]"
                                 >
                                     <option value="DAILY">Daily</option>
@@ -1246,6 +1420,59 @@ export default function HabitsPage() {
                                     <option value="CUSTOM">Custom</option>
                                 </select>
                             </div>
+
+                            {/* Weekly target */}
+                            {editForm.frequency === "WEEKLY" && (
+                                <div className="rounded-xl border border-[#e6dfd4] bg-[#f7f5f0] p-4">
+                                    <label className="mb-2 block text-sm font-medium text-foreground">
+                                        Weekly completion target
+                                    </label>
+
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="number"
+                                            min={1}
+                                            max={7}
+                                            step={1}
+                                            required
+                                            value={editForm.weeklyTarget ?? ""}
+                                            onChange={(event) =>
+                                                setEditForm((current) => ({
+                                                    ...current,
+                                                    weeklyTarget:
+                                                        event.target.value === ""
+                                                            ? undefined
+                                                            : Number(event.target.value),
+                                                }))
+                                            }
+                                            className="w-28 rounded-xl border border-[#e6dfd4] bg-white px-4 py-3 text-sm outline-none focus:border-[#f4773c]"
+                                        />
+
+                                        <span className="text-sm text-muted-foreground">
+                                            times per week
+                                        </span>
+                                    </div>
+
+                                    <p className="mt-2 text-xs text-muted-foreground">
+                                        Choose how many days you want to complete this habit each week.
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* Custom weekdays */}
+                            {editForm.frequency === "CUSTOM" && (
+                                <div className="rounded-xl border border-[#e6dfd4] bg-[#f7f5f0] p-4">
+                                    <WeekdaySelector
+                                        selectedDays={editForm.customDays ?? []}
+                                        onChange={(days) =>
+                                            setEditForm((current) => ({
+                                                ...current,
+                                                customDays: days,
+                                            }))
+                                        }
+                                    />
+                                </div>
+                            )}
 
                             {/* Target */}
                             <div className="grid gap-4 sm:grid-cols-2">
@@ -1517,14 +1744,17 @@ export default function HabitsPage() {
 
                                 <select
                                     value={createForm.frequency}
-                                    onChange={(event) =>
+                                    onChange={(event) => {
+                                        const frequency =
+                                            event.target.value as CreateHabitInput["frequency"];
+
                                         setCreateForm((current) => ({
                                             ...current,
-                                            frequency:
-                                                event.target
-                                                    .value as CreateHabitInput["frequency"],
-                                        }))
-                                    }
+                                            frequency,
+                                            weeklyTarget: undefined,
+                                            customDays: [],
+                                        }));
+                                    }}
                                     className="w-full rounded-xl border border-[#e6dfd4] bg-white px-4 py-3 text-sm outline-none transition focus:border-[#f4773c]"
                                 >
                                     <option value="DAILY">Daily</option>
@@ -1532,6 +1762,59 @@ export default function HabitsPage() {
                                     <option value="CUSTOM">Custom</option>
                                 </select>
                             </div>
+
+                            {/* Weekly target */}
+                            {createForm.frequency === "WEEKLY" && (
+                                <div className="rounded-xl border border-[#e6dfd4] bg-[#f7f5f0] p-4">
+                                    <label className="mb-2 block text-sm font-medium text-foreground">
+                                        Weekly completion target
+                                    </label>
+
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="number"
+                                            min={1}
+                                            max={7}
+                                            step={1}
+                                            required
+                                            value={createForm.weeklyTarget ?? ""}
+                                            onChange={(event) =>
+                                                setCreateForm((current) => ({
+                                                    ...current,
+                                                    weeklyTarget:
+                                                        event.target.value === ""
+                                                            ? undefined
+                                                            : Number(event.target.value),
+                                                }))
+                                            }
+                                            className="w-28 rounded-xl border border-[#e6dfd4] bg-white px-4 py-3 text-sm outline-none focus:border-[#f4773c]"
+                                        />
+
+                                        <span className="text-sm text-muted-foreground">
+                                            times per week
+                                        </span>
+                                    </div>
+
+                                    <p className="mt-2 text-xs text-muted-foreground">
+                                        Choose how many days you want to complete this habit each week.
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* Custom weekdays */}
+                            {createForm.frequency === "CUSTOM" && (
+                                <div className="rounded-xl border border-[#e6dfd4] bg-[#f7f5f0] p-4">
+                                    <WeekdaySelector
+                                        selectedDays={createForm.customDays ?? []}
+                                        onChange={(days) =>
+                                            setCreateForm((current) => ({
+                                                ...current,
+                                                customDays: days,
+                                            }))
+                                        }
+                                    />
+                                </div>
+                            )}
 
                             {/* Target */}
                             <div className="grid gap-4 sm:grid-cols-2">

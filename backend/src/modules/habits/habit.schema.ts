@@ -1,4 +1,30 @@
+
 import { z } from "zod";
+
+const habitWeekdaySchema = z.enum([
+  "MONDAY",
+  "TUESDAY",
+  "WEDNESDAY",
+  "THURSDAY",
+  "FRIDAY",
+  "SATURDAY",
+  "SUNDAY"
+]);
+
+const weeklyTargetSchema = z
+  .number()
+  .int("Weekly target must be a whole number")
+  .min(1, "Weekly target must be at least 1")
+  .max(7, "Weekly target cannot exceed 7");
+
+const customDaysSchema = z
+  .array(habitWeekdaySchema)
+  .min(1, "Select at least one day")
+  .max(7, "You cannot select more than 7 days")
+  .refine(
+    (days) => new Set(days).size === days.length,
+    "Duplicate weekdays are not allowed"
+  );
 
 export const createHabitSchema = z.object({
   name: z
@@ -35,6 +61,17 @@ export const createHabitSchema = z.object({
     "CUSTOM"
   ]).default("DAILY"),
 
+  weeklyTarget: weeklyTargetSchema.optional(),
+
+  customDays: z
+    .array(habitWeekdaySchema)
+    .max(7, "You cannot select more than 7 days")
+    .refine(
+      (days) => new Set(days).size === days.length,
+      "Duplicate weekdays are not allowed"
+    )
+    .optional(),
+
   startDate: z.coerce.date(),
 
   endDate: z.coerce.date().optional()
@@ -47,6 +84,28 @@ export const createHabitSchema = z.object({
       code: "custom",
       path: ["endDate"],
       message: "End date cannot be before start date"
+    });
+  }
+
+  if (
+    data.frequency === "WEEKLY" &&
+    data.weeklyTarget === undefined
+  ) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["weeklyTarget"],
+      message: "Weekly target is required for weekly habits"
+    });
+  }
+
+  if (
+    data.frequency === "CUSTOM" &&
+    (!data.customDays || data.customDays.length === 0)
+  ) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["customDays"],
+      message: "Select at least one day for custom habits"
     });
   }
 });
@@ -93,6 +152,17 @@ export const updateHabitSchema = z.object({
     ])
     .optional(),
 
+  weeklyTarget: weeklyTargetSchema.optional(),
+
+  customDays: z
+    .array(habitWeekdaySchema)
+    .max(7, "You cannot select more than 7 days")
+    .refine(
+      (days) => new Set(days).size === days.length,
+      "Duplicate weekdays are not allowed"
+    )
+    .optional(),
+
   startDate: z
     .coerce.date()
     .optional(),
@@ -105,6 +175,28 @@ export const updateHabitSchema = z.object({
   isActive: z
     .boolean()
     .optional()
+}).superRefine((data, ctx) => {
+  if (
+    data.frequency === "WEEKLY" &&
+    data.weeklyTarget === undefined
+  ) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["weeklyTarget"],
+      message: "Weekly target is required when changing frequency to weekly"
+    });
+  }
+
+  if (
+    data.frequency === "CUSTOM" &&
+    (!data.customDays || data.customDays.length === 0)
+  ) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["customDays"],
+      message: "Select at least one day when changing frequency to custom"
+    });
+  }
 });
 
 export type CreateHabitInput =

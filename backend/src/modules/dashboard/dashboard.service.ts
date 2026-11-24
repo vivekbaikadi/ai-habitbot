@@ -1,8 +1,27 @@
+
 import { prisma } from "../../database/prisma.js";
 
 import {
-  getUserDayRange
+  getUserDayRange,
+  getUserWeekRange,
+  getUserLocalDate
 } from "../../common/utils/date.utils.js";
+
+function getWeekday(date: string): string {
+  const weekdays = [
+    "MONDAY",
+    "TUESDAY",
+    "WEDNESDAY",
+    "THURSDAY",
+    "FRIDAY",
+    "SATURDAY",
+    "SUNDAY"
+  ];
+
+  const day = new Date(`${date}T00:00:00Z`).getUTCDay();
+
+  return weekdays[(day + 6) % 7]!;
+}
 
 export async function getTodayDashboard(
   userId: string
@@ -23,16 +42,16 @@ export async function getTodayDashboard(
               timezone: true,
               primaryGoal: true,
               heightCm: true,
-              weightKg: true,
-            },
+              weightKg: true
+            }
           },
 
           dietaryPreference: {
             select: {
-              dietType: true,
-            },
-          },
-        },
+              dietType: true
+            }
+          }
+        }
       }),
 
       prisma.userGoal.findMany({
@@ -67,8 +86,7 @@ export async function getTodayDashboard(
   }
 
   const timezone =
-    user.profile?.timezone ??
-    "Asia/Kolkata";
+    user.profile?.timezone ?? "Asia/Kolkata";
 
   const {
     startOfDay,
@@ -76,36 +94,59 @@ export async function getTodayDashboard(
     date
   } = getUserDayRange(timezone);
 
-  const habitIds =
-    habits.map(
-      (habit) => habit.id
-    );
+  const {
+    startOfWeek,
+    endOfWeek
+  } = getUserWeekRange(timezone);
 
-  const todayCompletions =
-    habitIds.length > 0
-      ? await prisma.habitCompletion.findMany({
-        where: {
-          habitId: {
-            in: habitIds
-          },
+  const habitIds = habits.map(
+    (habit) => habit.id
+  );
 
-          completedAt: {
-            gte: startOfDay,
-            lte: endOfDay
-          }
-        },
+  const [todayCompletions, weeklyCompletions] =
+    await Promise.all([
+      habitIds.length > 0
+        ? prisma.habitCompletion.findMany({
+            where: {
+              habitId: {
+                in: habitIds
+              },
 
-        orderBy: {
-          completedAt: "asc"
-        }
-      })
-      : [];
+              completedAt: {
+                gte: startOfDay,
+                lte: endOfDay
+              }
+            },
+
+            orderBy: {
+              completedAt: "asc"
+            }
+          })
+        : [],
+
+      habitIds.length > 0
+        ? prisma.habitCompletion.findMany({
+            where: {
+              habitId: {
+                in: habitIds
+              },
+
+              completedAt: {
+                gte: startOfWeek,
+                lte: endOfWeek
+              }
+            },
+
+            select: {
+              habitId: true,
+              completedAt: true
+            }
+          })
+        : []
+    ]);
 
   const completionsByHabit =
-    new Map<
-      string,
-      typeof todayCompletions
-    >();
+    new Map<string, typeof todayCompletions>();
 
   for (const completion of todayCompletions) {
     const existing =
@@ -121,6 +162,30 @@ export async function getTodayDashboard(
     );
   }
 
+  const weeklyDaysByHabit =
+    new Map<string, Set<string>>();
+
+  for (const completion of weeklyCompletions) {
+    const existing =
+      weeklyDaysByHabit.get(
+        completion.habitId
+      ) ?? new Set<string>();
+
+    existing.add(
+      getUserLocalDate(
+        completion.completedAt,
+        timezone
+      )
+    );
+
+    weeklyDaysByHabit.set(
+      completion.habitId,
+      existing
+    );
+  }
+
+  const todayWeekday = getWeekday(date);
+
   return {
     date,
 
@@ -130,44 +195,97 @@ export async function getTodayDashboard(
       timezone,
 
       profile: {
-        primaryGoal: user.profile?.primaryGoal ?? null,
-        heightCm: user.profile?.heightCm ?? null,
-        weightKg: user.profile?.weightKg ?? null,
+        primaryGoal:
+          user.profile?.primaryGoal ?? null,
+        heightCm:
+          user.profile?.heightCm ?? null,
+        weightKg:
+          user.profile?.weightKg ?? null
       },
 
-      dietType: user.dietaryPreference?.dietType ?? null,
+      dietType:
+        user.dietaryPreference?.dietType ?? null
     },
 
     goals,
 
     habits: habits.map((habit) => {
       const completions =
-        completionsByHabit.get(
-          habit.id
-        ) ?? [];
+        completionsByHabit.get(habit.id) ?? [];
 
-      const totalValue =
-        completions.reduce(
-          (sum, completion) =>
-            sum +
-            Number(
-              completion.value ?? 0
-            ),
-          0
+      const totalValue = completions.reduce(
+        (sum, completion) =>
+          sum + Number(completion.value ?? 0),
+        0
+      );
+
+      const startDate = getUserLocalDate(
+        habit.startDate,
+        timezone
+      );
+
+      const endDate = habit.endDate
+        ? getUserLocalDate(habit.endDate, timezone)
+        : null;
+
+      const withinActiveDates =
+        date >= startDate &&
+        (!endDate || date <= endDate);
+
+      const isScheduledToday =
+        withinActiveDates &&
+        (
+          habit.frequency === "DAILY" ||
+          habit.frequency === "WEEKLY" ||
+          (
+            habit.frequency === "CUSTOM" &&
+            habit.customDays.includes(
+              todayWeekday as typeof habit.customDays[number]
+            )
+          )
         );
+
+      const weeklyDays =
+        weeklyDaysByHabit.get(habit.id) ??
+        new Set<string>();
+
+      const weeklyCompleted =
+        weeklyDays.size;
+
+      const weeklyTarget =
+        habit.weeklyTarget;
+
+      const weeklyProgress =
+        habit.frequency === "WEEKLY" &&
+        weeklyTarget !== null
+          ? {
+              target: weeklyTarget,
+              completed: weeklyCompleted,
+              remaining: Math.max(
+                0,
+                weeklyTarget - weeklyCompleted
+              ),
+              achieved:
+                weeklyCompleted >= weeklyTarget
+            }
+          : null;
 
       return {
         id: habit.id,
         name: habit.name,
-        description:
-          habit.description,
+        description: habit.description,
         goalId: habit.goalId,
-        targetValue:
-          habit.targetValue,
-        targetUnit:
-          habit.targetUnit,
-        frequency:
-          habit.frequency,
+
+        targetValue: habit.targetValue,
+        targetUnit: habit.targetUnit,
+
+        frequency: habit.frequency,
+        weeklyTarget: habit.weeklyTarget,
+        customDays: habit.customDays,
+
+        isScheduledToday,
+
+        weeklyProgress,
 
         today: {
           completed:
@@ -184,8 +302,7 @@ export async function getTodayDashboard(
               : null,
 
           lastCompletedAt:
-            completions.at(-1)
-              ?.completedAt ?? null
+            completions.at(-1)?.completedAt ?? null
         }
       };
     })
