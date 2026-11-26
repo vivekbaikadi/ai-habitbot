@@ -1,3 +1,4 @@
+
 import "dotenv/config";
 import { z } from "zod";
 
@@ -24,13 +25,20 @@ const envSchema = z.object({
 
   FRONTEND_URL: z.string().url(),
 
-  GEMINI_API_KEY: z
-    .string()
-    .min(1),
+  GEMINI_API_KEY: z.string().min(1),
 
   GEMINI_MODEL: z
     .string()
-    .default("gemini-3.6-flash")
+    .default("gemini-3.6-flash"),
+
+  // Web Push Notifications
+  VAPID_PUBLIC_KEY: z.string().min(1),
+
+  VAPID_PRIVATE_KEY: z.string().min(1),
+
+  VAPID_SUBJECT: z
+    .string()
+    .default("mailto:admin@habitbot.app"),
 });
 
 const parsed = envSchema.safeParse(process.env);

@@ -15,6 +15,7 @@ import foodLogRoutes from "./modules/food-logs/food-log.routes.js";
 import nutritionRoutes from "./modules/nutrition/nutrition.routes.js";
 import aiRoutes from "./modules/ai/ai.routes.js";
 import analyticsRoutes from "./modules/analytics/analytics.routes.js";
+import notificationRoutes from "./modules/notifications/notification.routes.js";
 
 
 import profileRoutes from "./modules/profile/profile.routes.js";
@@ -97,7 +98,7 @@ app.use("/api/v1/food-logs", foodLogRoutes);
 app.use("/api/v1/nutrition", nutritionRoutes);
 app.use("/api/v1/ai", aiRoutes);
 app.use("/api/v1/analytics", analyticsRoutes);
-
+app.use("/api/v1/notifications", notificationRoutes);
 
 app.use(errorMiddleware);
 

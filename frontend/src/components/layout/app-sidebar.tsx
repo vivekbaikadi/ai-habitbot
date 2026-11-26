@@ -44,7 +44,7 @@ const navigation = [
   },
   {
     label: "AI Coach",
-    href: "/ai/coach",
+    href: "/ai-coach",
     icon: Bot,
   },
 ];

@@ -1,13 +1,14 @@
+
 "use client";
 
 import Link from "next/link";
 
 import {
-  Bell,
   Search,
 } from "lucide-react";
 
 import { useAuth } from "@/providers/auth-provider";
+import { NotificationDropdown } from "@/components/notifications/notification-dropdown";
 
 export function AppHeader() {
   const { user } = useAuth();
@@ -112,41 +113,9 @@ export function AppHeader() {
           </kbd>
         </button>
 
-        {/* Notification */}
+        {/* Notifications */}
 
-        <button
-          type="button"
-          aria-label="Notifications"
-          className="
-            relative
-            flex h-10 w-10
-            items-center justify-center
-            rounded-full
-            border border-border
-            bg-card
-            transition
-            hover:bg-muted
-          "
-        >
-          <Bell className="h-[17px] w-[17px]" />
-
-          <span
-            className="
-              absolute
-              right-2
-              top-1.5
-              flex h-4 w-4
-              items-center justify-center
-              rounded-full
-              bg-primary
-              text-[9px]
-              font-bold
-              text-white
-            "
-          >
-            3
-          </span>
-        </button>
+        <NotificationDropdown />
 
         {/* Avatar */}
 

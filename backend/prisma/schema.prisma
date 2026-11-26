@@ -58,6 +58,11 @@ enum HabitWeekday {
   SUNDAY
 }
 
+enum NotificationType {
+  HABIT_REMINDER
+  SYSTEM
+}
+
 // ─────────────────────────────────────────────
 // FOOD ENUMS
 // ─────────────────────────────────────────────
@@ -116,7 +121,9 @@ model User {
   goals  UserGoal[]
   habits Habit[]
 
-  aiConversations AIConversation[]
+  aiConversations   AIConversation[]
+  notifications     Notification[]
+  pushSubscriptions PushSubscription[]
 }
 
 model UserGoal {
@@ -190,7 +197,9 @@ model Habit {
   user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   goal UserGoal? @relation(fields: [goalId], references: [id], onDelete: SetNull)
 
-  completions HabitCompletion[]
+  completions   HabitCompletion[]
+  reminders     HabitReminder[]
+  notifications Notification[]
 
   @@index([userId])
   @@index([userId, isActive])
@@ -212,6 +221,63 @@ model HabitCompletion {
   habit Habit @relation(fields: [habitId], references: [id], onDelete: Cascade)
 
   @@index([habitId, completedAt])
+}
+
+model HabitReminder {
+  id        String  @id @default(uuid())
+  habitId   String
+  time      String  @db.VarChar(5) // HH:mm
+  isEnabled Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  habit         Habit          @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  notifications Notification[]
+
+  @@index([habitId, isEnabled])
+}
+
+model Notification {
+  id         String           @id @default(uuid())
+  userId     String
+  habitId    String?
+  reminderId String?
+  localDate  String?
+  type       NotificationType @default(HABIT_REMINDER)
+
+  title   String
+  message String
+  readAt  DateTime?
+
+  createdAt DateTime @default(now())
+
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  habit    Habit?         @relation(fields: [habitId], references: [id], onDelete: SetNull)
+  reminder HabitReminder? @relation(fields: [reminderId], references: [id], onDelete: SetNull)
+
+  // Prevent duplicate reminder notifications for the same local date.
+  @@unique([reminderId, localDate])
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
+}
+
+model PushSubscription {
+  id       String @id @default(uuid())
+  userId   String
+  endpoint String @unique @db.Text
+  p256dh   String
+  auth     String
+
+  expirationTime DateTime?
+  userAgent      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // ─────────────────────────────────────────────
