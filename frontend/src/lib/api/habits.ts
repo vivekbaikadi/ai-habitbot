@@ -26,25 +26,18 @@ export interface Habit {
   id: string;
   userId: string;
   goalId: string | null;
-
   name: string;
   description: string | null;
-
   isActive: boolean;
-
   targetValue: number | string | null;
   targetUnit: string | null;
-
   frequency: HabitFrequency;
   weeklyTarget: number | null;
   customDays: HabitWeekday[];
-
   startDate: string;
   endDate: string | null;
-
   createdAt: string;
   updatedAt: string;
-
   goal: HabitGoal | null;
 }
 
@@ -54,11 +47,9 @@ export interface CreateHabitInput {
   goalId?: string;
   targetValue?: number;
   targetUnit?: string;
-
   frequency: HabitFrequency;
   weeklyTarget?: number;
   customDays?: HabitWeekday[];
-
   startDate: string;
   endDate?: string;
 }
@@ -69,11 +60,9 @@ export interface UpdateHabitInput {
   goalId?: string | null;
   targetValue?: number | null;
   targetUnit?: string | null;
-
   frequency?: HabitFrequency;
   weeklyTarget?: number;
   customDays?: HabitWeekday[];
-
   startDate?: string;
   endDate?: string | null;
   isActive?: boolean;
@@ -134,4 +123,78 @@ export async function deleteHabit(
   habitId: string
 ): Promise<void> {
   await apiClient.delete(`/habits/${habitId}`);
+}
+
+// Habit reminders
+
+export interface HabitReminder {
+  id: string;
+  habitId: string;
+  time: string;
+  isEnabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateHabitReminderInput {
+  time: string;
+}
+
+export interface UpdateHabitReminderInput {
+  time?: string;
+  isEnabled?: boolean;
+}
+
+export async function getHabitReminders(
+  habitId: string
+): Promise<HabitReminder[]> {
+  const response = await apiClient.get<{
+    success: boolean;
+    data: {
+      reminders: HabitReminder[];
+    };
+  }>(`/habits/${habitId}/reminders`);
+
+  return response.data.data.reminders;
+}
+
+export async function createHabitReminder(
+  habitId: string,
+  input: CreateHabitReminderInput
+): Promise<HabitReminder> {
+  const response = await apiClient.post<{
+    success: boolean;
+    data: {
+      reminder: HabitReminder;
+    };
+  }>(`/habits/${habitId}/reminders`, input);
+
+  return response.data.data.reminder;
+}
+
+export async function updateHabitReminder(
+  habitId: string,
+  reminderId: string,
+  input: UpdateHabitReminderInput
+): Promise<HabitReminder> {
+  const response = await apiClient.patch<{
+    success: boolean;
+    data: {
+      reminder: HabitReminder;
+    };
+  }>(
+    `/habits/${habitId}/reminders/${reminderId}`,
+    input
+  );
+
+  return response.data.data.reminder;
+}
+
+export async function deleteHabitReminder(
+  habitId: string,
+  reminderId: string
+): Promise<void> {
+  await apiClient.delete(
+    `/habits/${habitId}/reminders/${reminderId}`
+  );
 }

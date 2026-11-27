@@ -16,6 +16,12 @@ import {
   Target,
   Trophy,
   TrendingUp,
+  Bell,
+  Clock,
+  Plus,
+  Pencil,
+  Trash2,
+  X,
 } from "lucide-react";
 
 import { getHabitById, type Habit, type HabitWeekday } from "@/lib/api/habits";
@@ -24,6 +30,14 @@ import {
   getHabitStats,
   type Completion,
 } from "@/lib/api/completions";
+
+import {
+  useHabitReminders,
+  useCreateHabitReminder,
+  useUpdateHabitReminder,
+  useDeleteHabitReminder,
+} from "@/hooks/use-habit-reminders";
+
 
 const ACCENT = "#f4773c";
 const OLIVE = "#7c865b";
@@ -243,6 +257,64 @@ function StatCard({
 export default function HabitDetailsPage() {
   const params = useParams<{ id: string }>();
   const habitId = params.id;
+
+  const [newReminderTime, setNewReminderTime] = useState("08:00");
+  const [editingReminderId, setEditingReminderId] = useState<string | null>(null);
+  const [editingReminderTime, setEditingReminderTime] = useState("");
+
+  const {
+    data: reminders = [],
+    isLoading: remindersLoading,
+    isError: remindersError,
+  } = useHabitReminders(habitId);
+
+  const createReminder = useCreateHabitReminder(habitId);
+  const updateReminder = useUpdateHabitReminder(habitId);
+  const deleteReminder = useDeleteHabitReminder(habitId);
+
+  const handleAddReminder = () => {
+    createReminder.mutate(
+      { time: newReminderTime },
+      {
+        onSuccess: () => {
+          // Keep the selected time for convenient additional reminders.
+        },
+      }
+    );
+  };
+
+  const handleUpdateReminder = (reminderId: string) => {
+    if (!editingReminderTime) return;
+
+    updateReminder.mutate(
+      {
+        reminderId,
+        input: { time: editingReminderTime },
+      },
+      {
+        onSuccess: () => {
+          setEditingReminderId(null);
+          setEditingReminderTime("");
+        },
+      }
+    );
+  };
+
+  const handleToggleReminder = (
+    reminderId: string,
+    isEnabled: boolean
+  ) => {
+    updateReminder.mutate({
+      reminderId,
+      input: { isEnabled: !isEnabled },
+    });
+  };
+
+  const handleDeleteReminder = (reminderId: string) => {
+    if (!window.confirm("Delete this reminder?")) return;
+
+    deleteReminder.mutate(reminderId);
+  };
 
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const now = new Date();
@@ -477,6 +549,208 @@ export default function HabitDetailsPage() {
           {habit.endDate ? ` · Ends ${formatDate(habit.endDate)}` : ""}
         </p>
       </section>
+
+
+      {/* Habit reminders */}
+      <section className="habitbot-card p-4 sm:p-5">
+        <div className="flex items-center gap-2">
+          <Bell className="h-5 w-5 text-[#f4773c]" />
+          <div>
+            <h2 className="text-base font-semibold text-foreground">
+              Reminders
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              Get notified when it's time to work on this habit.
+            </p>
+          </div>
+        </div>
+
+        {/* Add reminder */}
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+          <div className="relative flex-1">
+            <Clock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="time"
+              value={newReminderTime}
+              onChange={(event) => setNewReminderTime(event.target.value)}
+              className="w-full rounded-xl border border-[#e6dfd4] bg-white py-2.5 pl-10 pr-3 text-sm text-foreground outline-none transition focus:border-[#f4773c] focus:ring-2 focus:ring-[#f4773c]/15"
+              aria-label="New reminder time"
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={handleAddReminder}
+            disabled={createReminder.isPending}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#f4773c] px-4 py-2.5 text-sm font-medium text-white transition hover:bg-[#e96830] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Plus className="h-4 w-4" />
+            {createReminder.isPending ? "Adding..." : "Add reminder"}
+          </button>
+        </div>
+
+        {createReminder.isError && (
+          <p className="mt-2 text-xs text-red-600">
+            Could not add reminder. Check whether this time already exists.
+          </p>
+        )}
+
+        {/* Reminder list */}
+        <div className="mt-4 space-y-2">
+          {remindersLoading && (
+            <p className="py-4 text-center text-sm text-muted-foreground">
+              Loading reminders...
+            </p>
+          )}
+
+          {remindersError && (
+            <p className="py-4 text-center text-sm text-red-600">
+              Could not load reminders. Please try again.
+            </p>
+          )}
+
+          {!remindersLoading &&
+            !remindersError &&
+            reminders.length === 0 && (
+              <div className="rounded-xl bg-[#f7f5f0] p-5 text-center">
+                <Bell className="mx-auto h-6 w-6 text-muted-foreground" />
+                <p className="mt-2 text-sm font-medium text-foreground">
+                  No reminders yet
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Add a reminder to stay consistent with this habit.
+                </p>
+              </div>
+            )}
+
+          {reminders.map((reminder) => (
+            <div
+              key={reminder.id}
+              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#ebe5dc] bg-white p-3"
+            >
+              <div className="flex min-w-0 flex-1 items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#f4773c]/10 text-[#f4773c]">
+                  <Clock className="h-4 w-4" />
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  {editingReminderId === reminder.id ? (
+                    <input
+                      type="time"
+                      value={editingReminderTime}
+                      onChange={(event) =>
+                        setEditingReminderTime(event.target.value)
+                      }
+                      className="w-full max-w-36 rounded-lg border border-[#e6dfd4] px-2 py-1.5 text-sm outline-none focus:border-[#f4773c]"
+                      aria-label="Edit reminder time"
+                    />
+                  ) : (
+                    <p className="text-sm font-semibold text-foreground">
+                      {reminder.time}
+                    </p>
+                  )}
+
+                  <p className="text-xs text-muted-foreground">
+                    {reminder.isEnabled ? "Active" : "Disabled"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex shrink-0 items-center gap-1">
+                {editingReminderId === reminder.id ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handleUpdateReminder(reminder.id)}
+                      disabled={
+                        updateReminder.isPending || !editingReminderTime
+                      }
+                      className="rounded-lg px-2.5 py-2 text-xs font-medium text-[#7c865b] transition hover:bg-[#7c865b]/10 disabled:opacity-50"
+                    >
+                      Save
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingReminderId(null);
+                        setEditingReminderTime("");
+                      }}
+                      className="rounded-lg p-2 text-muted-foreground transition hover:bg-[#f7f5f0]"
+                      aria-label="Cancel editing"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingReminderId(reminder.id);
+                        setEditingReminderTime(reminder.time);
+                      }}
+                      className="rounded-lg p-2 text-muted-foreground transition hover:bg-[#f7f5f0] hover:text-foreground"
+                      aria-label="Edit reminder"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleToggleReminder(
+                          reminder.id,
+                          reminder.isEnabled
+                        )
+                      }
+                      disabled={updateReminder.isPending}
+                      className={`relative h-6 w-11 rounded-full transition ${reminder.isEnabled
+                          ? "bg-[#7c865b]"
+                          : "bg-[#d6d0c6]"
+                        } disabled:opacity-50`}
+                      role="switch"
+                      aria-checked={reminder.isEnabled}
+                      aria-label={`${reminder.isEnabled ? "Disable" : "Enable"
+                        } reminder at ${reminder.time}`}
+                    >
+                      <span
+                        className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-all ${reminder.isEnabled
+                            ? "left-[22px]"
+                            : "left-0.5"
+                          }`}
+                      />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteReminder(reminder.id)}
+                      disabled={deleteReminder.isPending}
+                      className="rounded-lg p-2 text-muted-foreground transition hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                      aria-label="Delete reminder"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {updateReminder.isError && (
+          <p className="mt-2 text-xs text-red-600">
+            Could not update reminder. Please check the time and try again.
+          </p>
+        )}
+
+        {deleteReminder.isError && (
+          <p className="mt-2 text-xs text-red-600">
+            Could not delete reminder. Please try again.
+          </p>
+        )}
+      </section>
+
 
       {/* Today's progress and activity */}
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
