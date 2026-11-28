@@ -2,7 +2,9 @@ import { Router } from "express";
 
 import {
   list,
-  getOne
+  getOne,
+  recent,
+  frequent
 } from "./food.controller.js";
 
 import {
@@ -14,7 +16,8 @@ const router = Router();
 router.use(authMiddleware);
 
 router.get("/", list);
-
+router.get("/recent", recent);
+router.get("/frequent", frequent);
 router.get("/:id", getOne);
 
 export default router;

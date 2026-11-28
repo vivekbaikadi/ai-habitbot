@@ -43,3 +43,16 @@ export const foodQuerySchema = z.object({
 export type FoodQuery = z.infer<
   typeof foodQuerySchema
 >;
+
+export const foodHistoryQuerySchema = z.object({
+  limit: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(50)
+    .default(10)
+});
+
+export type FoodHistoryQuery = z.infer<
+  typeof foodHistoryQuerySchema
+>;

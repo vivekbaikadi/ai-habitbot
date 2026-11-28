@@ -5,14 +5,20 @@ import type {
 } from "express";
 
 import { AppError } from "../../common/errors/app.error.js";
+import type {
+  AuthenticatedRequest
+} from "../../common/middleware/auth.middleware.js";
 
 import {
-  foodQuerySchema
+  foodQuerySchema,
+  foodHistoryQuerySchema
 } from "./food.schema.js";
 
 import {
   searchFoods,
-  getFoodById
+  getFoodById,
+  getRecentFoods,
+  getFrequentFoods
 } from "./food.service.js";
 
 function getFoodId(req: Request): string {
@@ -44,6 +50,62 @@ export async function list(
     res.status(200).json({
       success: true,
       data: result
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function recent(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { limit } = foodHistoryQuerySchema.parse(
+      req.query
+    );
+
+    const userId = (req as AuthenticatedRequest).user.id;
+
+    const foods = await getRecentFoods(
+      userId,
+      limit
+    );
+
+    res.status(200).json({
+      success: true,
+      data: {
+        foods
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function frequent(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { limit } = foodHistoryQuerySchema.parse(
+      req.query
+    );
+
+    const userId = (req as AuthenticatedRequest).user.id;
+
+    const foods = await getFrequentFoods(
+      userId,
+      limit
+    );
+
+    res.status(200).json({
+      success: true,
+      data: {
+        foods
+      }
     });
   } catch (error) {
     next(error);

@@ -1,10 +1,18 @@
+
 import { prisma } from "../../database/prisma.js";
 
 import type {
-  FoodQuery
+  FoodQuery,
+  FoodHistoryQuery
 } from "./food.schema.js";
 
 import { AppError } from "../../common/errors/app.error.js";
+
+const foodHistoryInclude = {
+  category: true,
+  aliases: true,
+  portions: true
+} as const;
 
 export async function searchFoods(
   query: FoodQuery
@@ -44,23 +52,9 @@ export async function searchFoods(
         }
       : {}),
 
-    ...(foodType
-      ? {
-          foodType
-        }
-      : {}),
-
-    ...(dietType
-      ? {
-          dietType
-        }
-      : {}),
-
-    ...(categoryId
-      ? {
-          categoryId
-        }
-      : {})
+    ...(foodType ? { foodType } : {}),
+    ...(dietType ? { dietType } : {}),
+    ...(categoryId ? { categoryId } : {})
   };
 
   const [foods, total] = await Promise.all([
@@ -68,15 +62,7 @@ export async function searchFoods(
       where,
       skip,
       take: limit,
-
-      include: {
-        category: true,
-
-        aliases: true,
-
-        portions: true
-      },
-
+      include: foodHistoryInclude,
       orderBy: {
         name: "asc"
       }
@@ -89,7 +75,6 @@ export async function searchFoods(
 
   return {
     foods,
-
     pagination: {
       page,
       limit,
@@ -109,9 +94,7 @@ export async function getFoodById(
 
     include: {
       category: true,
-
       aliases: true,
-
       portions: true,
 
       nutritionProfiles: {
@@ -137,4 +120,103 @@ export async function getFoodById(
   }
 
   return food;
+}
+
+export async function getRecentFoods(
+  userId: string,
+  limit: FoodHistoryQuery["limit"]
+) {
+  const recentItems = await prisma.foodLogItem.findMany({
+    where: {
+      foodLog: {
+        userId
+      }
+    },
+
+    distinct: ["foodId"],
+
+    orderBy: [
+      {
+        foodLog: {
+          eatenAt: "desc"
+        }
+      },
+      {
+        foodId: "asc"
+      }
+    ],
+
+    take: limit,
+
+    select: {
+      food: {
+        include: foodHistoryInclude
+      }
+    }
+  });
+
+  return recentItems.map((item) => item.food);
+}
+
+export async function getFrequentFoods(
+  userId: string,
+  limit: FoodHistoryQuery["limit"]
+) {
+  const frequentItems = await prisma.foodLogItem.groupBy({
+    by: ["foodId"],
+
+    where: {
+      foodLog: {
+        userId
+      }
+    },
+
+    _count: {
+      foodId: true
+    },
+
+    orderBy: [
+      {
+        _count: {
+          foodId: "desc"
+        }
+      },
+      {
+        foodId: "asc"
+      }
+    ],
+
+    take: limit
+  });
+
+  if (frequentItems.length === 0) {
+    return [];
+  }
+
+  const foods = await prisma.food.findMany({
+    where: {
+      id: {
+        in: frequentItems.map((item) => item.foodId)
+      }
+    },
+
+    include: foodHistoryInclude
+  });
+
+  const foodMap = new Map(
+    foods.map((food) => [food.id, food])
+  );
+
+  return frequentItems.flatMap((item) => {
+    const food = foodMap.get(item.foodId);
+
+    if (!food) {
+      return [];
+    }
+
+    return [{
+      ...food,
+      consumptionCount: item._count.foodId
+    }];
+  });
 }
